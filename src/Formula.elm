@@ -1,22 +1,22 @@
 module Formula
     exposing
-        ( Term(..)
-        , Formula(..)
-        , Substitution
-        , parse
-        , parseSigned
+        ( Formula(..)
         , Signed(..)
-        , signedSubformulas
-        , isSubformulaOf
-        , strFormula
-        , strTerm
-        , strSigned
+        , Substitution
+        , Term(..)
+        , errorString
         , isAlpha
         , isBeta
-        , isSignedSubformulaOf
         , isSignedComplementary
+        , isSignedSubformulaOf
+        , isSubformulaOf
+        , parse
+        , parseSigned
         , signedGetFormula
-        , errorString
+        , signedSubformulas
+        , strFormula
+        , strSigned
+        , strTerm
         )
 
 {-| This library parses and exports formulas.
@@ -44,30 +44,30 @@ module Formula
 -}
 
 import Char
-import Set exposing (Set)
 import Dict exposing (Dict)
 import Parser
     exposing
-        ( Parser
-        , (|.)
+        ( (|.)
         , (|=)
-        , succeed
-        , symbol
-        , float
-        , ignore
-        , repeat
-        , zeroOrMore
-        , oneOf
-        , lazy
-        , keyword
+        , Parser
         , delayedCommit
         , delayedCommitMap
         , end
-        , oneOrMore
+        , float
+        , ignore
         , inContext
+        , keyword
+        , lazy
+        , oneOf
+        , oneOrMore
+        , repeat
+        , succeed
+        , symbol
+        , zeroOrMore
         )
-import Parser.LanguageKit exposing (variable, sequence, whitespace)
+import Parser.LanguageKit exposing (sequence, variable, whitespace)
 import Result as R
+import Set exposing (Set)
 
 
 {-| Term
@@ -168,7 +168,7 @@ freeFormula f =
                 _ ->
                     List.foldl freeFormulaA fvs <| subformulas f
     in
-        freeFormulaA f Set.empty
+    freeFormulaA f Set.empty
 
 
 substTerm : Substitution -> Term -> Term
@@ -192,30 +192,30 @@ unsafeSubstFormula sigma f =
         subst =
             unsafeSubstFormula sigma
     in
-        case f of
-            Atom p ts ->
-                Atom p (List.map (substTerm sigma) ts)
+    case f of
+        Atom p ts ->
+            Atom p (List.map (substTerm sigma) ts)
 
-            ForAll x sf ->
-                ForAll x (unsafeSubstFormula (Dict.remove x sigma) sf)
+        ForAll x sf ->
+            ForAll x (unsafeSubstFormula (Dict.remove x sigma) sf)
 
-            Exists x sf ->
-                Exists x (unsafeSubstFormula (Dict.remove x sigma) sf)
+        Exists x sf ->
+            Exists x (unsafeSubstFormula (Dict.remove x sigma) sf)
 
-            Disj lf rf ->
-                Disj (subst lf) (subst rf)
+        Disj lf rf ->
+            Disj (subst lf) (subst rf)
 
-            Conj lf rf ->
-                Conj (subst lf) (subst rf)
+        Conj lf rf ->
+            Conj (subst lf) (subst rf)
 
-            Impl lf rf ->
-                Impl (subst lf) (subst rf)
+        Impl lf rf ->
+            Impl (subst lf) (subst rf)
 
-            Neg sf ->
-                Neg (subst sf)
+        Neg sf ->
+            Neg (subst sf)
 
-            _ ->
-                f
+        _ ->
+            f
 
 
 mapResult : (a -> Result x b) -> List a -> Result x (List b)
@@ -249,18 +249,18 @@ substFormula σ f =
                                 " are"
                            )
             in
-                if Set.isEmpty clashing then
-                    Ok t
-                else
-                    Err <|
-                        String.join " "
-                            [ "Cannot substitute"
-                            , strTerm t
-                            , "for"
-                            , x ++ ";"
-                            , varsToBe clashing
-                            , "bound"
-                            ]
+            if Set.isEmpty clashing then
+                Ok t
+            else
+                Err <|
+                    String.join " "
+                        [ "Cannot substitute"
+                        , strTerm t
+                        , "for"
+                        , x ++ ";"
+                        , varsToBe clashing
+                        , "bound"
+                        ]
 
         substT : Substitution -> Set String -> Term -> Result String Term
         substT σ bound t =
@@ -278,7 +278,7 @@ substFormula σ f =
                         Fun f ts ->
                             R.map (Fun f) <| substTs σ bound ts
             in
-                subst t
+            subst t
 
         substTs σ bound =
             mapResult (substT σ bound)
@@ -289,34 +289,34 @@ substFormula σ f =
                 subst =
                     substF σ bound
             in
-                case f of
-                    Atom p ts ->
-                        R.map (Atom p) (substTs σ bound ts)
+            case f of
+                Atom p ts ->
+                    R.map (Atom p) (substTs σ bound ts)
 
-                    ForAll x sf ->
-                        R.map (ForAll x)
-                            (substF (Dict.remove x σ) (Set.insert x bound) sf)
+                ForAll x sf ->
+                    R.map (ForAll x)
+                        (substF (Dict.remove x σ) (Set.insert x bound) sf)
 
-                    Exists x sf ->
-                        R.map (Exists x)
-                            (substF (Dict.remove x σ) (Set.insert x bound) sf)
+                Exists x sf ->
+                    R.map (Exists x)
+                        (substF (Dict.remove x σ) (Set.insert x bound) sf)
 
-                    Disj lf rf ->
-                        R.map2 Disj (subst lf) (subst rf)
+                Disj lf rf ->
+                    R.map2 Disj (subst lf) (subst rf)
 
-                    Conj lf rf ->
-                        R.map2 Conj (subst lf) (subst rf)
+                Conj lf rf ->
+                    R.map2 Conj (subst lf) (subst rf)
 
-                    Impl lf rf ->
-                        R.map2 Impl (subst lf) (subst rf)
+                Impl lf rf ->
+                    R.map2 Impl (subst lf) (subst rf)
 
-                    Neg sf ->
-                        R.map Neg (subst sf)
+                Neg sf ->
+                    R.map Neg (subst sf)
 
-                    _ ->
-                        Ok f
+                _ ->
+                    Ok f
     in
-        substF σ Set.empty f
+    substF σ Set.empty f
 
 
 predicates : Formula -> Set String
@@ -330,7 +330,7 @@ predicates f =
                 _ ->
                     List.foldl predicatesA ps <| subformulas f
     in
-        predicatesA f Set.empty
+    predicatesA f Set.empty
 
 
 functions : Formula -> Set String
@@ -352,7 +352,7 @@ functions f =
                 _ ->
                     List.foldl functionsA fs <| subformulas f
     in
-        functionsA f Set.empty
+    functionsA f Set.empty
 
 
 variables : Formula -> Set String
@@ -374,7 +374,7 @@ variables f =
                 _ ->
                     List.foldl variablesA vs <| subformulas f
     in
-        variablesA f Set.empty
+    variablesA f Set.empty
 
 
 
@@ -594,7 +594,7 @@ parse =
 -}
 errorString : Parser.Error -> String
 errorString e =
-    "Invalid formula: " ++ (toString e)
+    "Invalid formula: " ++ toString e
 
 
 formula : Parser Formula
@@ -719,10 +719,10 @@ strSigned : Signed Formula -> String
 strSigned sf =
     case sf of
         T f ->
-            "T " ++ (strFormula f)
+            "T " ++ strFormula f
 
         F f ->
-            "F " ++ (strFormula f)
+            "F " ++ strFormula f
 
 
 {-| String representation of a Formula
@@ -744,36 +744,36 @@ strFormula f =
                 _ ->
                     ""
     in
-        case f of
-            FT ->
-                "True"
+    case f of
+        FT ->
+            "True"
 
-            FF ->
-                "False"
+        FF ->
+            "False"
 
-            Atom p [] ->
-                p
+        Atom p [] ->
+            p
 
-            Atom p ts ->
-                p ++ strArgs ts
+        Atom p ts ->
+            p ++ strArgs ts
 
-            Neg f ->
-                "¬" ++ strFormula f
+        Neg f ->
+            "¬" ++ strFormula f
 
-            Conj lf rf ->
-                strBinF lf "∧" rf
+        Conj lf rf ->
+            strBinF lf "∧" rf
 
-            Disj lf rf ->
-                strBinF lf "∨" rf
+        Disj lf rf ->
+            strBinF lf "∨" rf
 
-            Impl lf rf ->
-                strBinF lf "→" rf
+        Impl lf rf ->
+            strBinF lf "→" rf
 
-            ForAll bv f ->
-                strQF "∀" bv f
+        ForAll bv f ->
+            strQF "∀" bv f
 
-            Exists bv f ->
-                strQF "∃" bv f
+        Exists bv f ->
+            strQF "∃" bv f
 
 
 strArgs ts =
