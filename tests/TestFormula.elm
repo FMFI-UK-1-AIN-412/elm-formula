@@ -1,10 +1,10 @@
 module TestFormula exposing (..)
 
-import Test exposing (..)
 import Expect
-import Fuzz exposing (list, int, tuple, string)
-import String
 import Formula exposing (..)
+import Fuzz exposing (int, list, string, tuple)
+import String
+import Test exposing (..)
 
 
 fail msg =
@@ -123,11 +123,11 @@ testSubformula failMsg1 failMsg2 assertion sub formula =
         strF =
             strFormula formula
     in
-        test ((strFormula sub) ++ " isSubformulaOf " ++ (strFormula formula)) <|
-            \() ->
-                assertion
-                    (strSub ++ " is " ++ failMsg1 ++ "subformula of " ++ strF ++ " (when it should " ++ failMsg2 ++ "be)")
-                    (isSubformulaOf sub formula)
+    test (strFormula sub ++ " isSubformulaOf " ++ strFormula formula) <|
+        \() ->
+            assertion
+                (strSub ++ " is " ++ failMsg1 ++ "subformula of " ++ strF ++ " (when it should " ++ failMsg2 ++ "be)")
+                (isSubformulaOf sub formula)
 
 
 testIsSubformula =
