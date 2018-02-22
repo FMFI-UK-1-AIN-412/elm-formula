@@ -1,26 +1,30 @@
 module Formula
     exposing
-        ( Formula(..)
+        ( Term(..)
+        , Formula(..)
+        , Substitution
+        , parse
+        , parseSigned
         , Signed(..)
+        , signedSubformulas
+        , isSubformulaOf
+        , strFormula
+        , strTerm
+        , strSigned
         , isAlpha
         , isBeta
-        , signedSubformulas
         , isSignedSubformulaOf
         , isSignedComplementary
         , signedGetFormula
-        , parseSigned
-        , parse
         , errorString
-        , strSigned
-        , strFormula
         )
 
-{-| This library parses string to formulas
+{-| This library parses and exports formulas.
 
 
 # Definitions
 
-@docs Formula, Signed
+@docs Formula, Signed, Substitution, Term
 
 
 # Parsers
@@ -30,26 +34,18 @@ module Formula
 
 # Strings
 
-@docs strFormula, strSigned, errorString
+@docs strFormula, strSigned, strTerm, errorString
 
 
 # Helpers
 
-@docs isAlpha, isBeta, isSignedComplementary, isSignedSubformulaOf, signedGetFormula, signedSubformulas
+@docs isAlpha, isBeta, isSignedComplementary, isSignedSubformulaOf, signedGetFormula, signedSubformulas, isSubformulaOf
 
--}
-
-{- todo: in the future, we may expose
-   , SignedType(..)
-   , subformulas
-   , isSubformulaOf
-   , negType
-   , negSigned
-   , signedType
 -}
 
 import Char
-import Set
+import Set exposing (Set)
+import Dict exposing (Dict)
 import Parser
     exposing
         ( Parser
@@ -59,33 +55,46 @@ import Parser
         , symbol
         , float
         , ignore
+        , repeat
         , zeroOrMore
         , oneOf
         , lazy
         , keyword
+        , delayedCommit
         , delayedCommitMap
         , end
         , oneOrMore
+        , inContext
         )
 import Parser.LanguageKit exposing (variable, sequence, whitespace)
+import Result as R
 
 
-{-| Formula can be
+{-| Term
+-}
+type Term
+    = Var String
+    | Fun String (List Term)
 
-  - atomic
-  - negation of a formula
-  - disjunction, conjuction, implication of two formulas
-  - FF and FT
 
+{-| Formula
 -}
 type Formula
-    = Atom String
+    = Atom String (List Term)
     | Neg Formula
     | Disj Formula Formula
     | Conj Formula Formula
     | Impl Formula Formula
+    | ForAll String Formula
+    | Exists String Formula
     | FF
     | FT
+
+
+{-| Type alias for substitution
+-}
+type alias Substitution =
+    Dict String Term
 
 
 subformulas : Formula -> List Formula
@@ -103,13 +112,269 @@ subformulas f =
         Impl lf rf ->
             [ lf, rf ]
 
+        ForAll _ sf ->
+            [ sf ]
+
+        Exists _ sf ->
+            [ sf ]
+
         _ ->
             []
 
 
+{-| Is the first a subformula of the second
+-}
 isSubformulaOf : Formula -> Formula -> Bool
 isSubformulaOf a b =
     List.member a (subformulas b)
+
+
+
+--
+-- First-order syntactic operations
+--
+
+
+freeTermA : Term -> Set String -> Set String
+freeTermA t fvs =
+    case t of
+        Var x ->
+            Set.insert x fvs
+
+        Fun _ ts ->
+            List.foldl freeTermA fvs ts
+
+
+freeTerm : Term -> Set String
+freeTerm t =
+    freeTermA t Set.empty
+
+
+freeFormula : Formula -> Set String
+freeFormula f =
+    let
+        freeFormulaA : Formula -> Set String -> Set String
+        freeFormulaA f fvs =
+            case f of
+                Atom _ ts ->
+                    List.foldl freeTermA fvs ts
+
+                ForAll x sf ->
+                    Set.remove x <| freeFormulaA sf fvs
+
+                Exists x sf ->
+                    Set.remove x <| freeFormulaA sf fvs
+
+                _ ->
+                    List.foldl freeFormulaA fvs <| subformulas f
+    in
+        freeFormulaA f Set.empty
+
+
+substTerm : Substitution -> Term -> Term
+substTerm sigma t =
+    case t of
+        Var x ->
+            case Dict.get x sigma of
+                Just xt ->
+                    xt
+
+                Nothing ->
+                    t
+
+        Fun f ts ->
+            Fun f <| List.map (substTerm sigma) ts
+
+
+unsafeSubstFormula : Substitution -> Formula -> Formula
+unsafeSubstFormula sigma f =
+    let
+        subst =
+            unsafeSubstFormula sigma
+    in
+        case f of
+            Atom p ts ->
+                Atom p (List.map (substTerm sigma) ts)
+
+            ForAll x sf ->
+                ForAll x (unsafeSubstFormula (Dict.remove x sigma) sf)
+
+            Exists x sf ->
+                Exists x (unsafeSubstFormula (Dict.remove x sigma) sf)
+
+            Disj lf rf ->
+                Disj (subst lf) (subst rf)
+
+            Conj lf rf ->
+                Conj (subst lf) (subst rf)
+
+            Impl lf rf ->
+                Impl (subst lf) (subst rf)
+
+            Neg sf ->
+                Neg (subst sf)
+
+            _ ->
+                f
+
+
+mapResult : (a -> Result x b) -> List a -> Result x (List b)
+mapResult f =
+    List.foldr (Result.map2 (::) << f) (Ok [])
+
+
+substFormula : Substitution -> Formula -> Result String Formula
+substFormula σ f =
+    let
+        canSubst x t bound =
+            let
+                clashing =
+                    Set.intersect bound (freeTerm t)
+
+                strVars xs =
+                    String.join ", " xs
+
+                varsToBe xs =
+                    "variable"
+                        ++ (if Set.size xs == 1 then
+                                ""
+                            else
+                                "s"
+                           )
+                        ++ " "
+                        ++ strVars (Set.toList xs)
+                        ++ (if Set.size xs == 1 then
+                                " is"
+                            else
+                                " are"
+                           )
+            in
+                if Set.isEmpty clashing then
+                    Ok t
+                else
+                    Err <|
+                        String.join " "
+                            [ "Cannot substitute"
+                            , strTerm t
+                            , "for"
+                            , x ++ ";"
+                            , varsToBe clashing
+                            , "bound"
+                            ]
+
+        substT : Substitution -> Set String -> Term -> Result String Term
+        substT σ bound t =
+            let
+                subst t =
+                    case t of
+                        Var x ->
+                            case Dict.get x σ of
+                                Just xt ->
+                                    canSubst x xt bound
+
+                                Nothing ->
+                                    Ok t
+
+                        Fun f ts ->
+                            R.map (Fun f) <| substTs σ bound ts
+            in
+                subst t
+
+        substTs σ bound =
+            mapResult (substT σ bound)
+
+        substF : Substitution -> Set String -> Formula -> Result String Formula
+        substF σ bound f =
+            let
+                subst =
+                    substF σ bound
+            in
+                case f of
+                    Atom p ts ->
+                        R.map (Atom p) (substTs σ bound ts)
+
+                    ForAll x sf ->
+                        R.map (ForAll x)
+                            (substF (Dict.remove x σ) (Set.insert x bound) sf)
+
+                    Exists x sf ->
+                        R.map (Exists x)
+                            (substF (Dict.remove x σ) (Set.insert x bound) sf)
+
+                    Disj lf rf ->
+                        R.map2 Disj (subst lf) (subst rf)
+
+                    Conj lf rf ->
+                        R.map2 Conj (subst lf) (subst rf)
+
+                    Impl lf rf ->
+                        R.map2 Impl (subst lf) (subst rf)
+
+                    Neg sf ->
+                        R.map Neg (subst sf)
+
+                    _ ->
+                        Ok f
+    in
+        substF σ Set.empty f
+
+
+predicates : Formula -> Set String
+predicates f =
+    let
+        predicatesA f ps =
+            case f of
+                Atom p _ ->
+                    Set.insert p ps
+
+                _ ->
+                    List.foldl predicatesA ps <| subformulas f
+    in
+        predicatesA f Set.empty
+
+
+functions : Formula -> Set String
+functions f =
+    let
+        functionsTA t fs =
+            case t of
+                Fun f ts ->
+                    Set.insert f <| List.foldl functionsTA fs ts
+
+                _ ->
+                    fs
+
+        functionsA f fs =
+            case f of
+                Atom p ts ->
+                    List.foldl functionsTA fs ts
+
+                _ ->
+                    List.foldl functionsA fs <| subformulas f
+    in
+        functionsA f Set.empty
+
+
+variables : Formula -> Set String
+variables f =
+    let
+        variablesTA t vs =
+            case t of
+                Fun _ ts ->
+                    List.foldl variablesTA vs ts
+
+                Var x ->
+                    Set.insert x vs
+
+        variablesA f vs =
+            case f of
+                Atom p ts ->
+                    List.foldl variablesTA vs ts
+
+                _ ->
+                    List.foldl variablesA vs <| subformulas f
+    in
+        variablesA f Set.empty
 
 
 
@@ -128,6 +393,8 @@ type Signed a
 type SignedType
     = Alpha
     | Beta
+    | Gamma
+    | Delta
 
 
 negType : SignedType -> SignedType
@@ -138,6 +405,12 @@ negType t =
 
         Beta ->
             Alpha
+
+        Gamma ->
+            Delta
+
+        Delta ->
+            Gamma
 
 
 negSigned : Signed Formula -> Signed Formula
@@ -159,10 +432,10 @@ signedType sf =
         T FT ->
             Alpha
 
-        T (Atom _) ->
+        T (Atom _ _) ->
             Alpha
 
-        F (Atom _) ->
+        F (Atom _ _) ->
             Alpha
 
         T (Neg _) ->
@@ -180,25 +453,45 @@ signedType sf =
         T (Impl _ _) ->
             Beta
 
+        T (ForAll _ _) ->
+            Gamma
+
+        T (Exists _ _) ->
+            Delta
+
         F f ->
             negType <| signedType <| T f
 
 
-{-| Is the formula of type Alpha
+{-| Is the signed formula of type Alpha
 -}
 isAlpha : Signed Formula -> Bool
 isAlpha x =
     Alpha == signedType x
 
 
-{-| Is the formula of type Beta
+{-| Is the signed formula of type Beta
 -}
 isBeta : Signed Formula -> Bool
 isBeta x =
     Beta == signedType x
 
 
-{-| Get signed subformulas as list of signed formulas
+{-| Is the signed formula of type Gamma
+-}
+isGamma : Signed Formula -> Bool
+isGamma x =
+    Gamma == signedType x
+
+
+{-| Is the signed formula of type Delta
+-}
+isDelta : Signed Formula -> Bool
+isDelta x =
+    Delta == signedType x
+
+
+{-| Get signed subformulas as a list of signed formulas
 -}
 signedSubformulas : Signed Formula -> List (Signed Formula)
 signedSubformulas sf =
@@ -215,6 +508,12 @@ signedSubformulas sf =
         T (Impl l r) ->
             [ F l, T r ]
 
+        T (ForAll _ f) ->
+            [ T f ]
+
+        T (Exists _ f) ->
+            [ T f ]
+
         T _ ->
             []
 
@@ -222,14 +521,14 @@ signedSubformulas sf =
             T f |> signedSubformulas |> List.map negSigned
 
 
-{-| Is the first signed formula of the other
+{-| Is the first a Signed subformula of the second
 -}
 isSignedSubformulaOf : Signed Formula -> Signed Formula -> Bool
 isSignedSubformulaOf a b =
     List.member a (signedSubformulas b)
 
 
-{-| Are the two signed formulas complementary
+{-| Is the first Signed Formula complementary of the second Signed Formula
 -}
 isSignedComplementary : Signed Formula -> Signed Formula -> Bool
 isSignedComplementary a b =
@@ -244,7 +543,7 @@ isSignedComplementary a b =
             False
 
 
-{-| Get formula out of signed formula
+{-| Get Formula out of Signed Formula
 -}
 signedGetFormula : Signed Formula -> Formula
 signedGetFormula sf =
@@ -291,7 +590,7 @@ parse =
     Parser.run (succeed identity |. spaces |= formula |. spaces |. end)
 
 
-{-| Return error message from parsing error
+{-| Format parsing error
 -}
 errorString : Parser.Error -> String
 errorString e =
@@ -302,7 +601,16 @@ formula : Parser Formula
 formula =
     oneOf
         [ succeed Atom
-            |= variable Char.isLower Char.isLower (Set.fromList [])
+            |= identifier
+            |. spaces
+            |= oneOf
+                [ inContext "predicate arguments" args
+                , succeed []
+                ]
+        , lazy (\_ -> quantified [ "∀", "\\A", "\\forall", "\\a" ] ForAll)
+
+        -- keep \exists before \e
+        , lazy (\_ -> quantified [ "∃", "\\E", "\\exists", "\\e" ] Exists)
         , succeed Neg
             |. oneOfSymbols [ "-", "¬", "~" ]
             |. spaces
@@ -336,8 +644,68 @@ binary conn constructor =
             |. symbol ")"
 
 
+quantified symbols constructor =
+    succeed constructor
+        |. oneOfSymbols symbols
+        |. spaces
+        |= lazy (\_ -> identifier)
+        |. spaces
+        |= lazy (\_ -> formula)
+
+
+args : Parser (List Term)
+args =
+    succeed (::)
+        |. symbol "("
+        |. spaces
+        |= lazy (\_ -> term)
+        |. spaces
+        |= lazy (\_ -> repeat zeroOrMore nextArg)
+        |. symbol ")"
+
+
+nextArg : Parser Term
+nextArg =
+    succeed identity
+        |. symbol ","
+        |. spaces
+        |= term
+        |. spaces
+
+
+term : Parser Term
+term =
+    identifier
+        |> Parser.andThen
+            (\name ->
+                oneOf
+                    [ succeed (\args -> Fun name args)
+                        |= lazy (\_ -> inContext "function arguments" args)
+                    , succeed (Var name)
+                    ]
+            )
+
+
+identifier =
+    variable isLetter isIdentChar Set.empty
+
+
 oneOfSymbols syms =
     oneOf (List.map symbol syms)
+
+
+isLetter : Char -> Bool
+isLetter char =
+    Char.isLower char
+        || Char.isUpper char
+
+
+isIdentChar : Char -> Bool
+isIdentChar char =
+    isLetter char
+        || Char.isDigit char
+        || char
+        == '_'
 
 
 spaces : Parser ()
@@ -345,7 +713,7 @@ spaces =
     ignore zeroOrMore (\char -> char == ' ')
 
 
-{-| Show representation of a Signed Formula. todo: rewrite with toString instead.
+{-| String representation of a Signed Formula
 -}
 strSigned : Signed Formula -> String
 strSigned sf =
@@ -357,31 +725,71 @@ strSigned sf =
             "F " ++ (strFormula f)
 
 
-{-| Show representation of a Formula. todo: rewrite with toString instead.
+{-| String representation of a Formula
 -}
 strFormula : Formula -> String
 strFormula f =
-    case f of
-        FT ->
-            "True"
+    let
+        strBinF lf c rf =
+            "(" ++ strFormula lf ++ c ++ strFormula rf ++ ")"
 
-        FF ->
-            "False"
+        strQF q bv f =
+            q ++ bv ++ atomSpace f ++ strFormula f
 
-        Atom a ->
-            a
+        atomSpace f =
+            case f of
+                Atom _ _ ->
+                    " "
 
-        Neg f ->
-            "¬" ++ (strFormula f)
+                _ ->
+                    ""
+    in
+        case f of
+            FT ->
+                "True"
 
-        Conj lf rf ->
-            "(" ++ (strFormula lf) ++ "∧" ++ (strFormula rf) ++ ")"
+            FF ->
+                "False"
 
-        Disj lf rf ->
-            "(" ++ (strFormula lf) ++ "∨" ++ (strFormula rf) ++ ")"
+            Atom p [] ->
+                p
 
-        Impl lf rf ->
-            "(" ++ (strFormula lf) ++ "→" ++ (strFormula rf) ++ ")"
+            Atom p ts ->
+                p ++ strArgs ts
+
+            Neg f ->
+                "¬" ++ strFormula f
+
+            Conj lf rf ->
+                strBinF lf "∧" rf
+
+            Disj lf rf ->
+                strBinF lf "∨" rf
+
+            Impl lf rf ->
+                strBinF lf "→" rf
+
+            ForAll bv f ->
+                strQF "∀" bv f
+
+            Exists bv f ->
+                strQF "∃" bv f
+
+
+strArgs ts =
+    "(" ++ String.join "," (List.map strTerm ts) ++ ")"
+
+
+{-| String representation of a Term
+-}
+strTerm : Term -> String
+strTerm t =
+    case t of
+        Var v ->
+            v
+
+        Fun f ts ->
+            f ++ strArgs ts
 
 
 
