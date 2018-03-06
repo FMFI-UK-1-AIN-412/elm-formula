@@ -11,18 +11,6 @@ fail msg =
     test msg <| \() -> Expect.true msg False
 
 
-all : Test
-all =
-    describe "tableauEditor tests"
-        [ strTermTests
-        , strFormulaTests
-        , strSignedTests
-        , isSubformulaOfTests
-        , parseTests
-        , parseSignedTests
-        ]
-
-
 a : Formula
 a =
     Atom "a" []
@@ -83,6 +71,7 @@ strFTest str f =
     test str <| \() -> Expect.equal str (strFormula f)
 
 
+strFormulaTests : Test
 strFormulaTests =
     describe "strFormula tests"
         [ strFTest "a" <| a
@@ -104,15 +93,12 @@ strSignedTest str sf =
     test str <| \() -> Expect.equal str (strSigned sf)
 
 
+strSignedTests : Test
 strSignedTests =
     describe "strSigned tests"
         [ strSignedTest "F a" <| F a
         , strSignedTest "T a" <| T a
         ]
-
-
-expecto =
-    { patronum = Expect.true }
 
 
 testSubformula failMsg1 failMsg2 assertion sub formula =
@@ -131,7 +117,7 @@ testSubformula failMsg1 failMsg2 assertion sub formula =
 
 
 testIsSubformula =
-    testSubformula "not " "" expecto.patronum
+    testSubformula "not " "" Expect.true
 
 
 testIsNotSubformula =
