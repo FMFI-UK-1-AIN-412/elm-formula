@@ -5,6 +5,7 @@ module Formula
         , Substitution
         , Term(..)
         , errorString
+        , freeFormula
         , isAlpha
         , isBeta
         , isDelta
@@ -22,8 +23,7 @@ module Formula
         , strSigned
         , strSubstitution
         , strTerm
-        , substitutionIsValid
-        , variables
+        , substFormula
         )
 
 {-| This library parses and exports formulas.
@@ -104,115 +104,6 @@ type alias Substitution =
     Dict String Term
 
 
-{-| Checks if substitution on second equals first
--}
-substitutionIsValid : Substitution -> Signed Formula -> Signed Formula -> Bool
-substitutionIsValid substitution new original =
-    let
-        --        _ =
-        --            Debug.log "user's" new
-        --
-        --        _ =
-        --            Debug.log "original" original
-        --
-        --        _ =
-        --            Debug.log "substitution" substitution
-        --
-        --        _ =
-        --            Debug.log "original after substitution" (applyToSigned beginSubstitute substitution original)
-        allTermStringsInFormula =
-            allVariablesInFormula (signedGetFormula original)
-
-        --        _ =
-        --            Debug.log "free term strings in formula" freeTermStringsInFormula
-        subsKey =
-            substitution |> Dict.values |> List.head |> Maybe.withDefault (Var "default") |> strTerm
-    in
-    --TODO: ak substituujem new take ktore tam uz je volne (alebo konstanta?)
-    --below, kontrolujem len volne v danej jednej formule
-    (new == applyToSigned beginSubstitute substitution original) && not (Set.member subsKey allTermStringsInFormula)
-
-
-applyToSigned : (Substitution -> Formula -> Formula) -> Substitution -> Signed Formula -> Signed Formula
-applyToSigned function substitution sf =
-    case sf of
-        T formula ->
-            T (function substitution formula)
-
-        F formula ->
-            F (function substitution formula)
-
-
-beginSubstitute : Substitution -> Formula -> Formula
-beginSubstitute substitution original =
-    case substitute substitution original 0 of
-        ForAll s f ->
-            if List.member s (Dict.keys substitution) then
-                f
-            else
-                Atom "forall nothing" []
-
-        Exists s f ->
-            if List.member s (Dict.keys substitution) then
-                f
-            else
-                Atom "exists nothing" []
-
-        _ ->
-            Atom "else nothing" []
-
-
-getTermFromSubs : String -> Substitution -> Term
-getTermFromSubs key subs =
-    case Dict.get key subs of
-        Just t ->
-            t
-
-        Nothing ->
-            Var "default neni taky kluc"
-
-
-substitute : Substitution -> Formula -> Int -> Formula
-substitute substitution original depth =
-    case original of
-        Atom s ls ->
-            Atom s (List.map (substTerm substitution) ls)
-
-        Neg f ->
-            Neg (substitute substitution f (depth + 1))
-
-        Conj a b ->
-            Conj (substitute substitution a (depth + 1)) (substitute substitution b (depth + 1))
-
-        Disj a b ->
-            Disj (substitute substitution a (depth + 1)) (substitute substitution b (depth + 1))
-
-        Impl a b ->
-            Impl (substitute substitution a (depth + 1)) (substitute substitution b (depth + 1))
-
-        ForAll variable formula ->
-            if List.member variable (Dict.keys substitution) && depth == 0 then
-                ForAll variable (substitute substitution formula (depth + 1))
-            else if List.member variable (Dict.keys substitution) then
-                ForAll variable formula
-            else
-                ForAll variable (substitute substitution formula (depth + 1))
-
-        Exists variable formula ->
-            if List.member variable (Dict.keys substitution) && depth == 0 then
-                Exists variable (substitute substitution formula (depth + 1))
-            else if List.member variable (Dict.keys substitution) then
-                Exists variable formula
-            else
-                Exists variable (substitute substitution formula (depth + 1))
-
-        FF ->
-            FF
-
-        FT ->
-            FT
-
-
 subformulas : Formula -> List Formula
 subformulas f =
     case f of
@@ -266,25 +157,8 @@ freeTerm t =
     freeTermA t Set.empty
 
 
-
---not used, + above 2
-
-
-allVariablesInFormula : Formula -> Set String
-allVariablesInFormula f =
-    let
-        allVariables : Formula -> Set String -> Set String
-        allVariables f fvs =
-            case f of
-                Atom _ ts ->
-                    List.foldl freeTermA fvs ts
-
-                _ ->
-                    List.foldl allVariables fvs <| subformulas f
-    in
-    allVariables f Set.empty
-
-
+{-| Returns set of all free variables in given formula
+-}
 freeFormula : Formula -> Set String
 freeFormula f =
     let
@@ -321,47 +195,13 @@ substTerm sigma t =
             Fun f <| List.map (substTerm sigma) ts
 
 
-
---not used
-
-
-unsafeSubstFormula : Substitution -> Formula -> Formula
-unsafeSubstFormula sigma f =
-    let
-        subst =
-            unsafeSubstFormula sigma
-    in
-    case f of
-        Atom p ts ->
-            Atom p (List.map (substTerm sigma) ts)
-
-        ForAll x sf ->
-            ForAll x (unsafeSubstFormula (Dict.remove x sigma) sf)
-
-        Exists x sf ->
-            Exists x (unsafeSubstFormula (Dict.remove x sigma) sf)
-
-        Disj lf rf ->
-            Disj (subst lf) (subst rf)
-
-        Conj lf rf ->
-            Conj (subst lf) (subst rf)
-
-        Impl lf rf ->
-            Impl (subst lf) (subst rf)
-
-        Neg sf ->
-            Neg (subst sf)
-
-        _ ->
-            f
-
-
 mapResult : (a -> Result x b) -> List a -> Result x (List b)
 mapResult f =
     List.foldr (Result.map2 (::) << f) (Ok [])
 
 
+{-| Removes quantifier from given signed formula and returns formula after substitution or error
+-}
 removeQuantifierAndSubstitute : Substitution -> Formula -> Result String Formula
 removeQuantifierAndSubstitute substitution original =
     case original of
@@ -369,18 +209,21 @@ removeQuantifierAndSubstitute substitution original =
             if List.member s (Dict.keys substitution) then
                 removeQuantifierAndSubstitute substitution f
             else
-                substFormula substitution f |> Result.map (ForAll s)
+                substFormula substitution original
 
         Exists s f ->
             if List.member s (Dict.keys substitution) then
                 removeQuantifierAndSubstitute substitution f
             else
-                substFormula substitution f |> Result.map (Exists s)
+                substFormula substitution original
 
         _ ->
             substFormula substitution original
 
 
+{-| Checks if substitution is applicable and substitutes if yes. Returns Result.
+ErrMessage or Formula after substitution
+-}
 substFormula : Substitution -> Formula -> Result String Formula
 substFormula σ f =
     let
@@ -479,10 +322,6 @@ substFormula σ f =
     substF σ Set.empty f
 
 
-
--- not used
-
-
 predicates : Formula -> Set String
 predicates f =
     let
@@ -495,10 +334,6 @@ predicates f =
                     List.foldl predicatesA ps <| subformulas f
     in
     predicatesA f Set.empty
-
-
-
---not used
 
 
 functions : Formula -> Set String

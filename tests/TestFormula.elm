@@ -1,11 +1,11 @@
 module TestFormula exposing (..)
 
+import Dict
 import Expect
 import Formula exposing (..)
 import Fuzz exposing (int, list, string, tuple)
 import String
 import Test exposing (..)
-import Dict
 
 
 fail msg =
@@ -203,91 +203,117 @@ parseSignedTests =
         , test "F a" <| \() -> testParseSigned "F a" <| F a
         ]
 
+
+
 --testovanie spravneho dosadenia
+
+
 testSubstitution : Substitution -> Formula -> Formula -> Test
 testSubstitution s original new =
     test
-        ("in formula " ++ (original |> Formula.strFormula) ++" using subs " ++ (Formula.strSubstitution s))
+        ("in formula " ++ (original |> Formula.strFormula) ++ " using subs " ++ Formula.strSubstitution s)
         (\() -> Expect.equal (Ok new) (Formula.removeQuantifierAndSubstitute s original))
 
+
+
 --testovanie spravneho vyberu premennych -> aplikovateľnosť substitúcie
+
+
 testSubstitutionFail : Substitution -> Formula -> Test
 testSubstitutionFail s original =
     test
-    ("substitution is not applicable in " ++ Formula.strFormula original ++ " by substituting " ++ (Formula.strSubstitution s))
-        (\() -> Expect.err (Formula.removeQuantifierAndSubstitute s original) )
+        ("substitution is not applicable in " ++ Formula.strFormula original ++ " by substituting " ++ Formula.strSubstitution s)
+        (\() -> Expect.err (Formula.removeQuantifierAndSubstitute s original))
+
+
 
 --testovanie substitucie viacerych premennych naraz
+
 
 substitutionTests =
     describe "Substitution "
         [ testSubstitutionFail
-            (Dict.fromList [("x", Var "k")])
+            (Dict.fromList [ ( "x", Var "k" ) ])
             (Formula.parse "\\forall x \\forall k P(x,k)" |> Result.withDefault FF)
         , testSubstitution
-            (Dict.fromList [("x", Var "y"), ("y", Var "x")])
-            (Atom "P" [Var "x", Var "y"]) -- P(x,y)
-            (Atom "P" [Var "y", Var "x"])
+            (Dict.fromList [ ( "x", Var "y" ), ( "y", Var "x" ) ])
+            (Atom "P" [ Var "x", Var "y" ])
+            -- P(x,y)
+            (Atom "P" [ Var "y", Var "x" ])
+
         --moje below
-        , testSubstitution
-            (Dict.fromList [("x", Var "y"), ("y", Var "x")])
-            (ForAll "x" (ForAll "y" (Atom "P" [Var "x", Var "y"]))) -- P(x,y)
-            (Atom "P" [Var "y", Var "x"])
-        , testSubstitution
-            (Dict.fromList [("x", Var "z"), ("z", Var "x")])
-            (ForAll "x" (ForAll "z" (Atom "P" [Var "x", Var "z"]))) -- P(x,y)
-            (Atom "P" [Var "z", Var "x"])
-        , testSubstitution
-            (Dict.fromList [("x", Var "y"), ("y", Var "x")])
-            (Disj (Atom "P" [Var "x"]) (Atom "R" [Var "y"])) --P(x) | R(y)
-            (Disj (Atom "P" [Var "y"]) (Atom "R" [Var "x"]))
-        , testSubstitution
-            (Dict.fromList [("x", Var "k")])
-            (ForAll "x" (Atom "P" [Var "x"]))
-            (Atom "P" [Var "k"])
-        , testSubstitution
-            (Dict.fromList [("x", Var "k")])
-            (ForAll "x" (Disj (Atom "P" [Var "x"]) (Atom "R" [Var "x"])))
-            (Disj (Atom "P" [Var "k"]) (Atom "R" [Var "k"]))
-        , testSubstitution
-            (Dict.fromList [("x", Var "k")])
-            (ForAll "x" (Disj (Atom "P" [Var "x"]) (Atom "P" [Var "z"])))
-            (Disj (Atom "P" [Var "k"]) (Atom "P" [Var "z"]))
-        , testSubstitution
-            (Dict.fromList [("x", Var "k")])
-            (ForAll "x" (Disj (Atom "P" [Var "x"]) (ForAll "z" (Atom "P" [Var "z"]))))
-            (Disj (Atom "P" [Var "k"]) (ForAll "z" (Atom "P" [Var "z"])))
-        , testSubstitution --own
-            (Dict.fromList [("z", Var "k")])
-            (ForAll "z" (Disj (Atom "P" [Var "z"]) (ForAll "z" (Atom "G" [Var "z"]))))
-            (Disj (Atom "P" [Var "k"]) (ForAll "z" (Atom "G" [Var "z"])))
---        , testSubstitution
---            (Dict.fromList [("x", Var "k")])
---            (ForAll "z" (Disj (Atom "P" [Var "z"]) (ForAll "x" (Atom "P" [Var "x"]))))
---            (Err "")
-        , testSubstitution
-            (Dict.fromList [("z", Var "k")])
-            (ForAll "z" (Disj (Atom "P" [Var "z"]) (Atom "P" [Var "k"])))
-            (Disj (Atom "P" [Var "k"]) (Atom "P" [Var "k"]))
-        ,testSubstitution
-            (Dict.fromList [("x", Var "Diana")])
-            (ForAll "x" (Atom "P" [Fun "f" [Var "x"]]))
-            (Atom "P" [Fun "f" [Var "Diana"]])
-        , testSubstitution
-            (Dict.fromList [("x", Var "k")])
-            (ForAll "x" (Exists "y" (Atom "P" [Var "x", Var "y"])))
-            (Exists "y" (Atom "P" [Var "k", Var "y"]))
-        , testSubstitution
-            (Dict.fromList [("x", Var "k"), ("y", Var "z")])
-            (ForAll "x" (Exists "y" (Atom "P" [Var "x", Var "y"])))
-            (Atom "P" [Var "k", Var "z"])
         , testSubstitutionFail
-            (Dict.fromList [("x", Var "k")])
-            (ForAll "x" (Exists "k" (Atom "P" [Var "k", Var "x"])))
+            (Dict.fromList [ ( "n", Var "k" ) ])
+            (Formula.parse "\\forall n \\forall k P(n,k)" |> Result.withDefault FF)
         , testSubstitution
-            (Dict.fromList [("x", Var "k")])
-            (ForAll "x" (Atom "P" [Var "x", Var "k"]))
-            (Atom "P" [Var "k", Var "k"])
+            (Dict.fromList [ ( "x", Var "y" ), ( "y", Var "x" ) ])
+            (ForAll "x" (ForAll "y" (Atom "P" [ Var "x", Var "y" ])))
+            -- P(x,y)
+            (Atom "P" [ Var "y", Var "x" ])
+        , testSubstitution
+            (Dict.fromList [ ( "x", Var "z" ), ( "z", Var "x" ) ])
+            (ForAll "x" (ForAll "z" (Atom "P" [ Var "x", Var "z" ])))
+            -- P(x,y)
+            (Atom "P" [ Var "z", Var "x" ])
+        , testSubstitution
+            (Dict.fromList [ ( "x", Var "y" ), ( "y", Var "x" ) ])
+            (Disj (Atom "P" [ Var "x" ]) (Atom "R" [ Var "y" ]))
+            --P(x) | R(y)
+            (Disj (Atom "P" [ Var "y" ]) (Atom "R" [ Var "x" ]))
+        , testSubstitution
+            (Dict.fromList [ ( "x", Var "k" ) ])
+            (ForAll "x" (Atom "P" [ Var "x" ]))
+            (Atom "P" [ Var "k" ])
+        , testSubstitution
+            (Dict.fromList [ ( "x", Var "k" ) ])
+            (ForAll "x" (Disj (Atom "P" [ Var "x" ]) (Atom "R" [ Var "x" ])))
+            (Disj (Atom "P" [ Var "k" ]) (Atom "R" [ Var "k" ]))
+        , testSubstitution
+            (Dict.fromList [ ( "x", Var "k" ) ])
+            (ForAll "x" (Disj (Atom "P" [ Var "x" ]) (Atom "P" [ Var "z" ])))
+            (Disj (Atom "P" [ Var "k" ]) (Atom "P" [ Var "z" ]))
+        , testSubstitution
+            (Dict.fromList [ ( "x", Var "k" ) ])
+            (ForAll "x" (Disj (Atom "P" [ Var "x" ]) (ForAll "z" (Atom "P" [ Var "z" ]))))
+            (Disj (Atom "P" [ Var "k" ]) (ForAll "z" (Atom "P" [ Var "z" ])))
+        , testSubstitution
+            --own
+            (Dict.fromList [ ( "z", Var "k" ) ])
+            (ForAll "z" (Disj (Atom "P" [ Var "z" ]) (ForAll "z" (Atom "G" [ Var "z" ]))))
+            (Disj (Atom "P" [ Var "k" ]) (ForAll "z" (Atom "G" [ Var "z" ])))
+        , testSubstitution
+            (Dict.fromList [ ( "x", Var "k" ) ])
+            (ForAll "z" (Disj (Atom "P" [ Var "z" ]) (ForAll "x" (Atom "P" [ Var "x" ]))))
+            (ForAll "z" (Disj (Atom "P" [ Var "z" ]) (ForAll "x" (Atom "P" [ Var "x" ]))))
+        , testSubstitution
+            (Dict.fromList [ ( "z", Var "k" ) ])
+            (ForAll "z" (Disj (Atom "P" [ Var "z" ]) (ForAll "x" (Atom "P" [ Var "x" ]))))
+            (Disj (Atom "P" [ Var "k" ]) (ForAll "x" (Atom "P" [ Var "x" ])))
+        , testSubstitution
+            (Dict.fromList [ ( "z", Var "k" ) ])
+            (ForAll "z" (Disj (Atom "P" [ Var "z" ]) (Atom "P" [ Var "k" ])))
+            (Disj (Atom "P" [ Var "k" ]) (Atom "P" [ Var "k" ]))
+        , testSubstitution
+            (Dict.fromList [ ( "x", Var "Diana" ) ])
+            (ForAll "x" (Atom "P" [ Fun "f" [ Var "x" ] ]))
+            (Atom "P" [ Fun "f" [ Var "Diana" ] ])
+        , testSubstitution
+            (Dict.fromList [ ( "x", Var "k" ) ])
+            (ForAll "x" (Exists "y" (Atom "P" [ Var "x", Var "y" ])))
+            (Exists "y" (Atom "P" [ Var "k", Var "y" ]))
+        , testSubstitution
+            (Dict.fromList [ ( "x", Var "k" ), ( "y", Var "z" ) ])
+            (ForAll "x" (Exists "y" (Atom "P" [ Var "x", Var "y" ])))
+            (Atom "P" [ Var "k", Var "z" ])
+        , testSubstitutionFail
+            (Dict.fromList [ ( "x", Var "k" ) ])
+            (ForAll "x" (Exists "k" (Atom "P" [ Var "k", Var "x" ])))
+        , testSubstitution
+            (Dict.fromList [ ( "x", Var "k" ) ])
+            (ForAll "x" (Atom "P" [ Var "x", Var "k" ]))
+            (Atom "P" [ Var "k", Var "k" ])
         ]
+
+
 
 {- vim: set sw=2 ts=2 sts=2 et : -}
