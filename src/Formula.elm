@@ -36,17 +36,17 @@ module Formula
 
 # Parsers
 
-@docs parse, parseSigned
+@docs parse, parseSigned, parseTerm
 
 
 # Strings
 
-@docs strFormula, strSigned, strTerm, errorString
+@docs strFormula, strSigned, strTerm, strSubstitution, errorString
 
 
 # Helpers
 
-@docs isAlpha, isBeta, isSignedComplementary, isSignedSubformulaOf, signedGetFormula, signedSubformulas, isSubformulaOf
+@docs isAlpha, isBeta, isGamma, isDelta, freeFormula, removeQuantifierAndSubstitute, substFormula, isSignedComplementary, isSignedSubformulaOf, signedGetFormula, signedSubformulas, isSubformulaOf
 
 -}
 
@@ -589,6 +589,8 @@ signedFormula =
             ]
 
 
+{-| Parses string to Term
+-}
 parseTerm : String -> Result Parser.Error Term
 parseTerm =
     Parser.run (succeed identity |. spaces |= term |. spaces |. end)
