@@ -23,7 +23,7 @@ module Formula
         , strSigned
         , strSubstitution
         , strTerm
-        , substFormula
+        , substitute
         )
 
 {-| This library parses and exports formulas.
@@ -204,28 +204,31 @@ mapResult f =
 -}
 removeQuantifierAndSubstitute : Substitution -> Formula -> Result String Formula
 removeQuantifierAndSubstitute substitution original =
-    case original of
-        ForAll s f ->
-            if List.member s (Dict.keys substitution) then
-                removeQuantifierAndSubstitute substitution f
-            else
-                substFormula substitution original
+    if Dict.size substitution > 1 then
+        Err "there is more than one substitution pair"
+    else
+        case original of
+            ForAll s f ->
+                if List.member s (Dict.keys substitution) then
+                    substitute substitution f
+                else
+                    Err "substituted variable isn't in substitution"
 
-        Exists s f ->
-            if List.member s (Dict.keys substitution) then
-                removeQuantifierAndSubstitute substitution f
-            else
-                substFormula substitution original
+            Exists s f ->
+                if List.member s (Dict.keys substitution) then
+                    substitute substitution f
+                else
+                    Err "substituted variable isn't in substitution"
 
-        _ ->
-            substFormula substitution original
+            _ ->
+                Err "formula doesn't start with quantifier"
 
 
 {-| Checks if substitution is applicable and substitutes if yes. Returns Result.
 ErrMessage or Formula after substitution
 -}
-substFormula : Substitution -> Formula -> Result String Formula
-substFormula σ f =
+substitute : Substitution -> Formula -> Result String Formula
+substitute σ f =
     let
         canSubst : String -> Term -> Set String -> Result String Term
         canSubst x t bound =
@@ -658,7 +661,7 @@ binary conn constructor =
             |. symbol ")"
 
 
-quantified : List String -> (String -> Formula -> b) -> Parser b
+quantified : List String -> (String -> Formula -> Formula) -> Parser Formula
 quantified symbols constructor =
     succeed constructor
         |. oneOfSymbols symbols
@@ -735,10 +738,11 @@ spaces =
 strSubstitution : Substitution -> String
 strSubstitution s =
     "("
-        ++ Dict.foldl
-            (\key -> \value -> \meh -> key ++ "->" ++ strTerm value ++ ", ")
-            ""
-            s
+        ++ (s
+                |> Dict.toList
+                |> List.map (\( v, t ) -> v ++ "->" ++ strTerm t)
+                |> String.join ","
+           )
         ++ ")"
 
 
