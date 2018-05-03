@@ -1,5 +1,6 @@
 module TestFormula exposing (..)
 
+import Dict
 import Expect
 import Formula exposing (..)
 import Fuzz exposing (int, list, string, tuple)
@@ -21,14 +22,39 @@ b =
     Atom "b" []
 
 
+d : Term
+d =
+    Var "d"
+
+
+j : Term
+j =
+    Var "j"
+
+
+pt : Term
+pt =
+    Var "pt"
+
+
 p : List Term -> Formula
 p =
     Atom "ppp"
 
 
+s : Term
+s =
+    Var "s"
+
+
 q : List Term -> Formula
 q =
     Atom "q"
+
+
+k : Term
+k =
+    Var "k"
 
 
 x : Term
@@ -39,6 +65,11 @@ x =
 y : Term
 y =
     Var "yyy"
+
+
+z : Term
+z =
+    Var "z"
 
 
 f : List Term -> Term
@@ -200,6 +231,188 @@ parseSignedTests =
     describe "parseSigned tests"
         [ test "T a" <| \() -> testParseSigned "T a" <| T a
         , test "F a" <| \() -> testParseSigned "F a" <| F a
+        ]
+
+
+
+--testovanie spravneho dosadenia
+
+
+testSubstitution : Substitution -> Formula -> Formula -> Test
+testSubstitution s original new =
+    test
+        ("in formula " ++ (original |> Formula.strFormula) ++ " using subs " ++ Formula.strSubstitution s)
+        (\() -> Expect.equal (Ok new) (Formula.substitute s original))
+
+
+
+--testovanie spravneho vyberu premennych -> aplikovateľnosť substitúcie
+
+
+testSubstitutionFail : Substitution -> Formula -> Test
+testSubstitutionFail s original =
+    test
+        ("substitution is not applicable in "
+            ++ Formula.strFormula original
+            ++ " by substituting "
+            ++ Formula.strSubstitution s
+        )
+        (\() -> Expect.err (Formula.substitute s original))
+
+
+testRemoveQuantifierAndSubstitute : Substitution -> Formula -> Formula -> Test
+testRemoveQuantifierAndSubstitute s original new =
+    test
+        ("in formula " ++ (original |> Formula.strFormula) ++ " using subs " ++ Formula.strSubstitution s)
+        (\() -> Expect.equal (Ok new) (Formula.removeQuantifierAndSubstitute s original))
+
+
+testRemoveQuantifierAndSubstituteFail : Substitution -> Formula -> Test
+testRemoveQuantifierAndSubstituteFail s original =
+    test
+        ("in formula " ++ (original |> Formula.strFormula) ++ " using subs " ++ Formula.strSubstitution s)
+        (\() -> Expect.err (Formula.removeQuantifierAndSubstitute s original))
+
+
+
+--testovanie substitucie viacerych premennych naraz
+
+
+substitutionTests =
+    describe "Substitution "
+        [ --normal
+          testSubstitution
+            (Dict.fromList [ ( "d", y ), ( "j", x ) ])
+            (Impl
+                (Disj
+                    (ForAll "d" (Atom "P" [ d, Fun "f" [ d ], pt ]))
+                    (ForAll "j" (Atom "J" [ j, pt ]))
+                )
+                (Atom "S" [ s, j, Fun "d" [ d ] ])
+            )
+            (Impl
+                (Disj
+                    (ForAll "d" (Atom "P" [ d, Fun "f" [ d ], pt ]))
+                    (ForAll "j" (Atom "J" [ j, pt ]))
+                )
+                (Atom "S" [ s, x, Fun "d" [ y ] ])
+            )
+        , testSubstitution
+            (Dict.fromList [ ( "pt", x ) ])
+            (Neg (Conj (Neg (Atom "P" [ pt ])) (Atom "Z" [ x ])))
+            (Neg (Conj (Neg (Atom "P" [ x ])) (Atom "Z" [ x ])))
+        , testSubstitution
+            (Dict.fromList [ ( "x", Var "k" ) ])
+            (Formula.parse "\\forall x \\forall k P(x,k)" |> Result.withDefault FF)
+            (Formula.parse "\\forall x \\forall k P(x,k)" |> Result.withDefault FF)
+        , testSubstitution
+            (Dict.fromList [ ( "x", d ), ( "d", x ) ])
+            (Formula.parse "\\forall x \\forall d P(x,d)" |> Result.withDefault FF)
+            (Formula.parse "\\forall x \\forall d P(x,d)" |> Result.withDefault FF)
+
+        -- naraz
+        , testSubstitution
+            (Dict.fromList [ ( "x", y ), ( "yyy", x ) ])
+            (Disj (Atom "P" [ x ]) (Atom "R" [ y ]))
+            --P(x) | R(y)
+            (Disj (Atom "P" [ y ]) (Atom "R" [ x ]))
+        , testSubstitution
+            (Dict.fromList [ ( "x", y ), ( "yyy", x ) ])
+            (Atom "P" [ x, y ])
+            -- P(x,y)
+            (Atom "P" [ y, x ])
+        , testSubstitution
+            (Dict.fromList [ ( "x", y ), ( "yyy", s ), ( "s", x ) ])
+            (Disj (Atom "P" [ x, y ]) (Atom "L" [ y, s ]))
+            (Disj (Atom "P" [ y, s ]) (Atom "L" [ s, x ]))
+        , testSubstitution
+            (Dict.fromList [ ( "x", k ), ( "yyy", z ) ])
+            (ForAll "x" (Exists "yyy" (Atom "P" [ x, y ])))
+            (ForAll "x" (Exists "yyy" (Atom "P" [ x, y ])))
+
+        --viazane premenne
+        , testSubstitution
+            (Dict.fromList [ ( "x", s ) ])
+            (Conj (Atom "P" [ x ]) (ForAll "x" (Atom "Q" [ x ])))
+            (Conj (Atom "P" [ s ]) (ForAll "x" (Atom "Q" [ x ])))
+        , testSubstitution
+            (Dict.fromList [ ( "x", s ) ])
+            (Impl (ForAll "x" (Atom "P" [ x ])) (Atom "P" [ x, pt ]))
+            (Impl (ForAll "x" (Atom "P" [ x ])) (Atom "P" [ s, pt ]))
+
+        --subst nie je aplikovatelna
+        , testSubstitutionFail
+            (Dict.fromList [ ( "x", k ) ])
+            (ForAll "k" (Atom "P" [ x, k ]))
+        , testSubstitutionFail
+            (Dict.fromList [ ( "z", pt ) ])
+            (ForAll "pt" (Disj (Atom "P" [ z, k, x ]) (Atom "R" [ z, pt ])))
+        , testSubstitutionFail
+            (Dict.fromList [ ( "z", k ) ])
+            (ForAll "pt" (Conj (ForAll "z" (Atom "P" [ pt, z, x ])) (Exists "k" (Atom "R" [ pt, z, k ]))))
+        ]
+
+
+removeQuantifierTests =
+    describe "Remove quantifier and substitute"
+        [ testRemoveQuantifierAndSubstituteFail
+            (Dict.fromList [ ( "x", y ), ( "yyy", x ) ])
+            (ForAll "x" (ForAll "yyy" (Atom "P" [ x, y ])))
+        , testRemoveQuantifierAndSubstituteFail
+            (Dict.fromList [ ( "x", y ), ( "yyy", x ) ])
+            (ForAll "x" (Exists "yyy" (Atom "P" [ x, y ])))
+        , testRemoveQuantifierAndSubstituteFail
+            (Dict.fromList [ ( "x", k ) ])
+            (ForAll "z" (Disj (Atom "P" [ z ]) (ForAll "x" (Atom "P" [ x ]))))
+        , testRemoveQuantifierAndSubstituteFail
+            (Dict.fromList [ ( "z", k ) ])
+            (ForAll "z" (Disj (Atom "P" [ z ]) (ForAll "k" (Atom "P" [ k, z ]))))
+        , testRemoveQuantifierAndSubstituteFail
+            (Dict.fromList [ ( "x", Var "k" ) ])
+            (ForAll "x" (Exists "k" (Atom "P" [ Var "k", Var "x" ])))
+        , testRemoveQuantifierAndSubstituteFail
+            (Dict.fromList [ ( "d", z ) ])
+            (ForAll "x" (Exists "d" (Atom "P" [ x, d ])))
+        , testRemoveQuantifierAndSubstitute
+            (Dict.fromList [ ( "x", k ) ])
+            (ForAll "x" (Atom "P" [ x ]))
+            (Atom "P" [ k ])
+        , testRemoveQuantifierAndSubstitute
+            (Dict.fromList [ ( "x", k ) ])
+            (ForAll "x" (Disj (Atom "P" [ x ]) (Atom "R" [ x ])))
+            (Disj (Atom "P" [ k ]) (Atom "R" [ k ]))
+        , testRemoveQuantifierAndSubstitute
+            (Dict.fromList [ ( "x", k ) ])
+            (ForAll "x" (Disj (Atom "P" [ x ]) (Atom "P" [ z ])))
+            (Disj (Atom "P" [ k ]) (Atom "P" [ z ]))
+        , testRemoveQuantifierAndSubstitute
+            (Dict.fromList [ ( "x", k ) ])
+            (ForAll "x" (Disj (Atom "P" [ x ]) (ForAll "z" (Atom "P" [ z ]))))
+            (Disj (Atom "P" [ k ]) (ForAll "z" (Atom "P" [ z ])))
+        , testRemoveQuantifierAndSubstitute
+            (Dict.fromList [ ( "z", k ) ])
+            (ForAll "z" (Disj (Atom "P" [ z ]) (ForAll "z" (Atom "G" [ z ]))))
+            (Disj (Atom "P" [ k ]) (ForAll "z" (Atom "G" [ z ])))
+        , testRemoveQuantifierAndSubstitute
+            (Dict.fromList [ ( "z", k ) ])
+            (ForAll "z" (Disj (Atom "P" [ z ]) (ForAll "x" (Atom "P" [ x ]))))
+            (Disj (Atom "P" [ k ]) (ForAll "x" (Atom "P" [ x ])))
+        , testRemoveQuantifierAndSubstitute
+            (Dict.fromList [ ( "z", k ) ])
+            (ForAll "z" (Disj (Atom "P" [ z ]) (Atom "P" [ k ])))
+            (Disj (Atom "P" [ k ]) (Atom "P" [ k ]))
+        , testRemoveQuantifierAndSubstitute
+            (Dict.fromList [ ( "x", k ) ])
+            (ForAll "x" (Atom "P" [ Fun "f" [ x ] ]))
+            (Atom "P" [ Fun "f" [ k ] ])
+        , testRemoveQuantifierAndSubstitute
+            (Dict.fromList [ ( "x", k ) ])
+            (ForAll "x" (Exists "yyy" (Atom "P" [ x, y ])))
+            (Exists "yyy" (Atom "P" [ k, y ]))
+        , testRemoveQuantifierAndSubstitute
+            (Dict.fromList [ ( "x", Var "k" ) ])
+            (ForAll "x" (Atom "P" [ Var "x", Var "k" ]))
+            (Atom "P" [ Var "k", Var "k" ])
         ]
 
 

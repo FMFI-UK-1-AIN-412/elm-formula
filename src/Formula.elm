@@ -5,18 +5,25 @@ module Formula
         , Substitution
         , Term(..)
         , errorString
+        , freeFormula
         , isAlpha
         , isBeta
+        , isDelta
+        , isGamma
         , isSignedComplementary
         , isSignedSubformulaOf
         , isSubformulaOf
         , parse
         , parseSigned
+        , parseTerm
+        , removeQuantifierAndSubstitute
         , signedGetFormula
         , signedSubformulas
         , strFormula
         , strSigned
+        , strSubstitution
         , strTerm
+        , substitute
         )
 
 {-| This library parses and exports formulas.
@@ -29,17 +36,17 @@ module Formula
 
 # Parsers
 
-@docs parse, parseSigned
+@docs parse, parseSigned, parseTerm
 
 
 # Strings
 
-@docs strFormula, strSigned, strTerm, errorString
+@docs strFormula, strSigned, strTerm, strSubstitution, errorString
 
 
 # Helpers
 
-@docs isAlpha, isBeta, isSignedComplementary, isSignedSubformulaOf, signedGetFormula, signedSubformulas, isSubformulaOf
+@docs isAlpha, isBeta, isGamma, isDelta, freeFormula, removeQuantifierAndSubstitute, substFormula, isSignedComplementary, isSignedSubformulaOf, signedGetFormula, signedSubformulas, isSubformulaOf
 
 -}
 
@@ -150,6 +157,8 @@ freeTerm t =
     freeTermA t Set.empty
 
 
+{-| Returns set of all free variables in given formula
+-}
 freeFormula : Formula -> Set String
 freeFormula f =
     let
@@ -186,46 +195,42 @@ substTerm sigma t =
             Fun f <| List.map (substTerm sigma) ts
 
 
-unsafeSubstFormula : Substitution -> Formula -> Formula
-unsafeSubstFormula sigma f =
-    let
-        subst =
-            unsafeSubstFormula sigma
-    in
-    case f of
-        Atom p ts ->
-            Atom p (List.map (substTerm sigma) ts)
-
-        ForAll x sf ->
-            ForAll x (unsafeSubstFormula (Dict.remove x sigma) sf)
-
-        Exists x sf ->
-            Exists x (unsafeSubstFormula (Dict.remove x sigma) sf)
-
-        Disj lf rf ->
-            Disj (subst lf) (subst rf)
-
-        Conj lf rf ->
-            Conj (subst lf) (subst rf)
-
-        Impl lf rf ->
-            Impl (subst lf) (subst rf)
-
-        Neg sf ->
-            Neg (subst sf)
-
-        _ ->
-            f
-
-
 mapResult : (a -> Result x b) -> List a -> Result x (List b)
 mapResult f =
     List.foldr (Result.map2 (::) << f) (Ok [])
 
 
-substFormula : Substitution -> Formula -> Result String Formula
-substFormula σ f =
+{-| Removes quantifier from given signed formula and returns formula after substitution or error
+-}
+removeQuantifierAndSubstitute : Substitution -> Formula -> Result String Formula
+removeQuantifierAndSubstitute substitution original =
+    if Dict.size substitution > 1 then
+        Err "there is more than one substitution pair"
+    else
+        case original of
+            ForAll s f ->
+                if List.member s (Dict.keys substitution) then
+                    substitute substitution f
+                else
+                    Err "substituted variable isn't in substitution"
+
+            Exists s f ->
+                if List.member s (Dict.keys substitution) then
+                    substitute substitution f
+                else
+                    Err "substituted variable isn't in substitution"
+
+            _ ->
+                Err "formula doesn't start with quantifier"
+
+
+{-| Checks if substitution is applicable and substitutes if yes. Returns Result.
+ErrMessage or Formula after substitution
+-}
+substitute : Substitution -> Formula -> Result String Formula
+substitute σ f =
     let
+        canSubst : String -> Term -> Set String -> Result String Term
         canSubst x t bound =
             let
                 clashing =
@@ -280,8 +285,9 @@ substFormula σ f =
             in
             subst t
 
-        substTs σ bound =
-            mapResult (substT σ bound)
+        substTs : Substitution -> Set String -> List Term -> Result String (List Term)
+        substTs σ bound lst =
+            mapResult (substT σ bound) lst
 
         substF : Substitution -> Set String -> Formula -> Result String Formula
         substF σ bound f =
@@ -358,6 +364,7 @@ functions f =
 variables : Formula -> Set String
 variables f =
     let
+        variablesTA : Term -> Set String -> Set String
         variablesTA t vs =
             case t of
                 Fun _ ts ->
@@ -366,6 +373,7 @@ variables f =
                 Var x ->
                     Set.insert x vs
 
+        variablesA : Formula -> Set String -> Set String
         variablesA f vs =
             case f of
                 Atom p ts ->
@@ -568,6 +576,7 @@ parseSigned =
     Parser.run (succeed identity |. spaces |= signedFormula |. spaces |. end)
 
 
+signedFormula : Parser (Signed Formula)
 signedFormula =
     succeed identity
         |. spaces
@@ -581,6 +590,13 @@ signedFormula =
                 |. spaces
                 |= formula
             ]
+
+
+{-| Parses string to Term
+-}
+parseTerm : String -> Result Parser.Error Term
+parseTerm =
+    Parser.run (succeed identity |. spaces |= term |. spaces |. end)
 
 
 {-| Parse string to Formula
@@ -627,6 +643,7 @@ formula =
         ]
 
 
+binary : List String -> (Formula -> Formula -> value) -> Parser value
 binary conn constructor =
     delayedCommitMap constructor
         (succeed identity
@@ -644,6 +661,7 @@ binary conn constructor =
             |. symbol ")"
 
 
+quantified : List String -> (String -> Formula -> Formula) -> Parser Formula
 quantified symbols constructor =
     succeed constructor
         |. oneOfSymbols symbols
@@ -686,10 +704,12 @@ term =
             )
 
 
+identifier : Parser String
 identifier =
     variable isLetter isIdentChar Set.empty
 
 
+oneOfSymbols : List String -> Parser ()
 oneOfSymbols syms =
     oneOf (List.map symbol syms)
 
@@ -711,6 +731,19 @@ isIdentChar char =
 spaces : Parser ()
 spaces =
     ignore zeroOrMore (\char -> char == ' ')
+
+
+{-| String representation of a Substitution
+-}
+strSubstitution : Substitution -> String
+strSubstitution s =
+    "("
+        ++ (s
+                |> Dict.toList
+                |> List.map (\( v, t ) -> v ++ "->" ++ strTerm t)
+                |> String.join ","
+           )
+        ++ ")"
 
 
 {-| String representation of a Signed Formula
@@ -776,6 +809,7 @@ strFormula f =
             strQF "∃" bv f
 
 
+strArgs : List Term -> String
 strArgs ts =
     "(" ++ String.join "," (List.map strTerm ts) ++ ")"
 
