@@ -46,7 +46,7 @@ module Formula
 
 # Helpers
 
-@docs isAlpha, isBeta, isGamma, isDelta, freeFormula, removeQuantifierAndSubstitute, substFormula, isSignedComplementary, isSignedSubformulaOf, signedGetFormula, signedSubformulas, isSubformulaOf
+@docs substitute, isAlpha, isBeta, isGamma, isDelta, freeFormula, removeQuantifierAndSubstitute, isSignedComplementary, isSignedSubformulaOf, signedGetFormula, signedSubformulas, isSubformulaOf
 
 -}
 
