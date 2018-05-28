@@ -1,7 +1,7 @@
 {
     "version": "1.0.0",
     "summary": "Formula parser for first order logic.",
-    "repository": "https://github.com/ZoltanOnody/tablueau-parser.git",
+    "repository": "https://github.com/FMFI-UK-1-AIN-412/elm-formula.git",
     "license": "MIT",
     "source-directories": [
         "src"
