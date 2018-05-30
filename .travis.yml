@@ -35,3 +35,4 @@ install:
 script:
   - elm-format --validate src tests
   - elm test
+  - elm-make --docs=documentation.json
