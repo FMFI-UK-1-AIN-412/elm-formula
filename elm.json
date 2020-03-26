@@ -1,0 +1,18 @@
+{
+    "type": "package",
+    "name": "FMFI-UK-1-AIN-412/elm-formula",
+    "summary": "First-order logic formulas and parser",
+    "license": "MIT",
+    "version": "2.0.0",
+    "exposed-modules": [
+        "Formula"
+    ],
+    "elm-version": "0.19.0 <= v < 2.0.0",
+    "dependencies": {
+        "elm/core": "1.0.0 <= v < 2.0.0",
+        "elm/parser": "1.1.0 <= v < 2.0.0"
+    },
+    "test-dependencies": {
+        "elm-explorations/test": "1.2.2 <= v < 2.0.0"
+    }
+}
