@@ -4,6 +4,7 @@ import Dict
 import Expect
 import Formula exposing (..)
 import Fuzz exposing (int, list, string, tuple)
+import Parser
 import String
 import Test exposing (..)
 
@@ -83,8 +84,8 @@ g =
 
 
 strTTest : String -> Term -> Test
-strTTest str f =
-    test str <| \() -> Expect.equal str (strTerm f)
+strTTest str term =
+    test str <| \() -> Expect.equal str (strTerm term)
 
 
 strTermTests : Test
@@ -98,8 +99,8 @@ strTermTests =
 
 
 strFTest : String -> Formula -> Test
-strFTest str f =
-    test str <| \() -> Expect.equal str (strFormula f)
+strFTest str formula =
+    test str <| \() -> Expect.equal str (strFormula formula)
 
 
 strFormulaTests : Test
@@ -160,11 +161,11 @@ testIsNotSubformula =
 {- a must not be subformula of b ;) -}
 
 
-binIsSubformulaTests conn a b =
-    [ testIsSubformula a (Conj a a)
-    , testIsSubformula a (Conj a b)
-    , testIsSubformula a (Conj b a)
-    , testIsNotSubformula a (Conj b b)
+binIsSubformulaTests conn fa fb =
+    [ testIsSubformula fa (Conj fa fa)
+    , testIsSubformula fa (Conj fa fb)
+    , testIsSubformula fa (Conj fb fa)
+    , testIsNotSubformula fa (Conj fb fb)
     ]
 
 
@@ -205,7 +206,7 @@ testParseFunction function string formula =
             Expect.equal value formula
 
         Err error ->
-            Expect.fail <| "Parsing failed: " ++ toString error
+            Expect.fail <| "Parsing failed: " ++ Parser.deadEndsToString error
 
 
 testParse =
@@ -239,10 +240,10 @@ parseSignedTests =
 
 
 testSubstitution : Substitution -> Formula -> Formula -> Test
-testSubstitution s original new =
+testSubstitution subst original new =
     test
-        ("in formula " ++ (original |> Formula.strFormula) ++ " using subs " ++ Formula.strSubstitution s)
-        (\() -> Expect.equal (Ok new) (Formula.substitute s original))
+        ("in formula " ++ (original |> Formula.strFormula) ++ " using subs " ++ Formula.strSubstitution subst)
+        (\() -> Expect.equal (Ok new) (Formula.substitute subst original))
 
 
 
@@ -250,28 +251,28 @@ testSubstitution s original new =
 
 
 testSubstitutionFail : Substitution -> Formula -> Test
-testSubstitutionFail s original =
+testSubstitutionFail subst original =
     test
         ("substitution is not applicable in "
             ++ Formula.strFormula original
             ++ " by substituting "
-            ++ Formula.strSubstitution s
+            ++ Formula.strSubstitution subst
         )
-        (\() -> Expect.err (Formula.substitute s original))
+        (\() -> Expect.err (Formula.substitute subst original))
 
 
 testRemoveQuantifierAndSubstitute : Substitution -> Formula -> Formula -> Test
-testRemoveQuantifierAndSubstitute s original new =
+testRemoveQuantifierAndSubstitute subst original new =
     test
-        ("in formula " ++ (original |> Formula.strFormula) ++ " using subs " ++ Formula.strSubstitution s)
-        (\() -> Expect.equal (Ok new) (Formula.removeQuantifierAndSubstitute s original))
+        ("in formula " ++ (original |> Formula.strFormula) ++ " using subs " ++ Formula.strSubstitution subst)
+        (\() -> Expect.equal (Ok new) (Formula.removeQuantifierAndSubstitute subst original))
 
 
 testRemoveQuantifierAndSubstituteFail : Substitution -> Formula -> Test
-testRemoveQuantifierAndSubstituteFail s original =
+testRemoveQuantifierAndSubstituteFail subst original =
     test
-        ("in formula " ++ (original |> Formula.strFormula) ++ " using subs " ++ Formula.strSubstitution s)
-        (\() -> Expect.err (Formula.removeQuantifierAndSubstitute s original))
+        ("in formula " ++ (original |> Formula.strFormula) ++ " using subs " ++ Formula.strSubstitution subst)
+        (\() -> Expect.err (Formula.removeQuantifierAndSubstitute subst original))
 
 
 
