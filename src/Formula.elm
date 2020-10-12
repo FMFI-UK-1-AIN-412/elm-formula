@@ -1,9 +1,6 @@
 module Formula exposing
-    ( Formula(..), Signed(..), Substitution, Term(..)
-    , parse, parseSigned, parseTerm
-    , strFormula, strSigned, strTerm, strSubstitution, errorString
-    , substitute, isAlpha, isBeta, isGamma, isDelta, freeFormula, removeQuantifierAndSubstitute, isSignedComplementary, isSignedSubformulaOf, signedGetFormula, signedSubformulas, isSubformulaOf
-    )
+    ( Formula(..),  strFormula, 
+    substitute,  freeFormula, removeQuantifierAndSubstitute, isSubformulaOf)
 
 {-| This library exports and parses formulas.
 
@@ -29,36 +26,11 @@ module Formula exposing
 
 -}
 
+import Term exposing(Term(..), Substitution, freeTermA, substTs, strArgs) 
 import Char
 import Dict exposing (Dict)
-import Parser
-    exposing
-        ( (|.)
-        , (|=)
-        , Parser
-        , Trailing(..)
-        , backtrackable
-        , chompWhile
-        , end
-        , float
-        , keyword
-        , lazy
-        , map
-        , oneOf
-        , sequence
-        , succeed
-        , symbol
-        , variable
-        )
 import Result as R
 import Set exposing (Set)
-
-
-{-| Term
--}
-type Term
-    = Var String
-    | Fun String (List Term)
 
 
 {-| Formula
@@ -75,10 +47,6 @@ type Formula
     | FT
 
 
-{-| Type alias for substitution
--}
-type alias Substitution =
-    Dict String Term
 
 
 subformulas : Formula -> List Formula
@@ -118,22 +86,6 @@ isSubformulaOf a b =
 -- First-order syntactic operations
 --
 
-
-freeTermA : Term -> Set String -> Set String
-freeTermA t fvs =
-    case t of
-        Var x ->
-            Set.insert x fvs
-
-        Fun _ ts ->
-            List.foldl freeTermA fvs ts
-
-
-freeTerm : Term -> Set String
-freeTerm t =
-    freeTermA t Set.empty
-
-
 freeFormulaA : Formula -> Set String -> Set String
 freeFormulaA f fvs =
     case f of
@@ -157,24 +109,6 @@ freeFormula f =
     freeFormulaA f Set.empty
 
 
-substTerm : Substitution -> Term -> Term
-substTerm sigma t =
-    case t of
-        Var x ->
-            case Dict.get x sigma of
-                Just xt ->
-                    xt
-
-                Nothing ->
-                    t
-
-        Fun f ts ->
-            Fun f <| List.map (substTerm sigma) ts
-
-
-mapResult : (a -> Result x b) -> List a -> Result x (List b)
-mapResult f =
-    List.foldr (Result.map2 (::) << f) (Ok [])
 
 
 {-| Removes quantifier from given signed formula and returns formula after substitution or error
@@ -204,69 +138,6 @@ removeQuantifierAndSubstitute substitution original =
                 Err "formula doesn't start with quantifier"
 
 
-canSubst : String -> Term -> Set String -> Result String Term
-canSubst x t bound =
-    let
-        clashing =
-            Set.intersect bound (freeTerm t)
-
-        strVars xs =
-            String.join ", " xs
-
-        varsToBe xs =
-            "variable"
-                ++ (if Set.size xs == 1 then
-                        ""
-
-                    else
-                        "s"
-                   )
-                ++ " "
-                ++ strVars (Set.toList xs)
-                ++ (if Set.size xs == 1 then
-                        " is"
-
-                    else
-                        " are"
-                   )
-    in
-    if Set.isEmpty clashing then
-        Ok t
-
-    else
-        Err <|
-            String.join " "
-                [ "Cannot substitute"
-                , strTerm t
-                , "for"
-                , x ++ ";"
-                , varsToBe clashing
-                , "bound"
-                ]
-
-
-substT : Substitution -> Set String -> Term -> Result String Term
-substT σ bound tt =
-    let
-        subst t =
-            case t of
-                Var x ->
-                    case Dict.get x σ of
-                        Just xt ->
-                            canSubst x xt bound
-
-                        Nothing ->
-                            Ok t
-
-                Fun f ts ->
-                    R.map (Fun f) <| substTs σ bound ts
-    in
-    subst tt
-
-
-substTs : Substitution -> Set String -> List Term -> Result String (List Term)
-substTs σ bound lst =
-    mapResult (substT σ bound) lst
 
 
 substF : Substitution -> Set String -> Formula -> Result String Formula
@@ -374,370 +245,6 @@ variables f =
 
 
 
---
--- Signed formulas
---
-
-
-{-| Signed with T[rue] or F[alse]
--}
-type Signed a
-    = T a
-    | F a
-
-
-type SignedType
-    = Alpha
-    | Beta
-    | Gamma
-    | Delta
-
-
-negType : SignedType -> SignedType
-negType t =
-    case t of
-        Alpha ->
-            Beta
-
-        Beta ->
-            Alpha
-
-        Gamma ->
-            Delta
-
-        Delta ->
-            Gamma
-
-
-negSigned : Signed Formula -> Signed Formula
-negSigned sf =
-    case sf of
-        T f ->
-            F f
-
-        F f ->
-            T f
-
-
-signedType : Signed Formula -> SignedType
-signedType sf =
-    case sf of
-        T FF ->
-            Alpha
-
-        T FT ->
-            Alpha
-
-        T (Atom _ _) ->
-            Alpha
-
-        F (Atom _ _) ->
-            Alpha
-
-        T (Neg _) ->
-            Alpha
-
-        F (Neg _) ->
-            Alpha
-
-        T (Conj _ _) ->
-            Alpha
-
-        T (Disj _ _) ->
-            Beta
-
-        T (Impl _ _) ->
-            Beta
-
-        T (ForAll _ _) ->
-            Gamma
-
-        T (Exists _ _) ->
-            Delta
-
-        F f ->
-            negType <| signedType <| T f
-
-
-{-| Is the signed formula of type Alpha
--}
-isAlpha : Signed Formula -> Bool
-isAlpha x =
-    Alpha == signedType x
-
-
-{-| Is the signed formula of type Beta
--}
-isBeta : Signed Formula -> Bool
-isBeta x =
-    Beta == signedType x
-
-
-{-| Is the signed formula of type Gamma
--}
-isGamma : Signed Formula -> Bool
-isGamma x =
-    Gamma == signedType x
-
-
-{-| Is the signed formula of type Delta
--}
-isDelta : Signed Formula -> Bool
-isDelta x =
-    Delta == signedType x
-
-
-{-| Get signed subformulas as a list of signed formulas
--}
-signedSubformulas : Signed Formula -> List (Signed Formula)
-signedSubformulas sf =
-    case sf of
-        T (Neg f) ->
-            [ F f ]
-
-        T (Conj l r) ->
-            [ T l, T r ]
-
-        T (Disj l r) ->
-            [ T l, T r ]
-
-        T (Impl l r) ->
-            [ F l, T r ]
-
-        T (ForAll _ f) ->
-            [ T f ]
-
-        T (Exists _ f) ->
-            [ T f ]
-
-        T _ ->
-            []
-
-        F f ->
-            T f |> signedSubformulas |> List.map negSigned
-
-
-{-| Is the first a Signed subformula of the second
--}
-isSignedSubformulaOf : Signed Formula -> Signed Formula -> Bool
-isSignedSubformulaOf a b =
-    List.member a (signedSubformulas b)
-
-
-{-| Is the first Signed Formula complementary of the second Signed Formula
--}
-isSignedComplementary : Signed Formula -> Signed Formula -> Bool
-isSignedComplementary a b =
-    case ( a, b ) of
-        ( T x, F y ) ->
-            x == y
-
-        ( F x, T y ) ->
-            x == y
-
-        _ ->
-            False
-
-
-{-| Get Formula out of Signed Formula
--}
-signedGetFormula : Signed Formula -> Formula
-signedGetFormula sf =
-    case sf of
-        T f ->
-            f
-
-        F f ->
-            f
-
-
-
---
--- Parsing
---
-
-
-{-| Parse string to Signed Formula
--}
-parseSigned : String -> Result (List Parser.DeadEnd) (Signed Formula)
-parseSigned =
-    Parser.run (succeed identity |. spaces |= signedFormula |. spaces |. end)
-
-
-signedFormula : Parser (Signed Formula)
-signedFormula =
-    succeed identity
-        |. spaces
-        |= oneOf
-            [ succeed T
-                |. keyword "T"
-                |. spaces
-                |= formula
-            , succeed F
-                |. keyword "F"
-                |. spaces
-                |= formula
-            ]
-
-
-{-| Parses string to Term
--}
-parseTerm : String -> Result (List Parser.DeadEnd) Term
-parseTerm =
-    Parser.run (succeed identity |. spaces |= term |. spaces |. end)
-
-
-{-| Parse string to Formula
--}
-parse : String -> Result (List Parser.DeadEnd) Formula
-parse =
-    Parser.run (succeed identity |. spaces |= formula |. spaces |. end)
-
-
-{-| Format parsing error
--}
-errorString : List Parser.DeadEnd -> String
-errorString e =
-    "Invalid formula: " ++ Parser.deadEndsToString e
-
-
-formula : Parser Formula
-formula =
-    oneOf
-        [ succeed Atom
-            |= identifier
-            |. spaces
-            |= oneOf
-                [ args
-                , succeed []
-                ]
-        , lazy (\_ -> quantified [ "∀", "\\A", "\\forall", "\\a" ] ForAll)
-
-        -- keep \exists before \e
-        , lazy (\_ -> quantified [ "∃", "\\E", "\\exists", "\\e" ] Exists)
-        , succeed Neg
-            |. oneOfSymbols [ "-", "¬", "~" ]
-            |. spaces
-            |= lazy (\_ -> formula)
-        , backtrackable <| lazy (\_ -> binary [ "&", "∧", "/\\" ] Conj)
-        , backtrackable <| lazy (\_ -> binary [ "|", "∨", "\\/" ] Disj)
-        , backtrackable <| lazy (\_ -> binary [ "->", "→" ] Impl)
-        , succeed identity
-            |. symbol "("
-            |. spaces
-            |= lazy (\_ -> formula)
-            |. spaces
-            |. symbol ")"
-        ]
-
-
-binary : List String -> (Formula -> Formula -> value) -> Parser value
-binary conn constructor =
-    succeed constructor
-        |. symbol "("
-        |. spaces
-        |= lazy (\_ -> formula)
-        |. spaces
-        |. oneOfSymbols conn
-        |. spaces
-        |= lazy (\_ -> formula)
-        |. spaces
-        |. symbol ")"
-
-
-quantified : List String -> (String -> Formula -> Formula) -> Parser Formula
-quantified symbols constructor =
-    succeed constructor
-        |. oneOfSymbols symbols
-        |. spaces
-        |= lazy (\_ -> identifier)
-        |. spaces
-        |= lazy (\_ -> formula)
-
-
-args : Parser (List Term)
-args =
-    sequence
-        { start = "("
-        , separator = ","
-        , end = ")"
-        , spaces = spaces
-        , item = term
-        , trailing = Forbidden
-        }
-
-
-term : Parser Term
-term =
-    identifier
-        |> Parser.andThen
-            (\name ->
-                oneOf
-                    [ succeed (\fargs -> Fun name fargs)
-                        |= lazy (\_ -> args)
-                    , succeed (Var name)
-                    ]
-            )
-
-
-identifier : Parser String
-identifier =
-    variable
-        { start = isLetter
-        , inner = isIdentChar
-        , reserved = Set.empty
-        }
-
-
-oneOfSymbols : List String -> Parser ()
-oneOfSymbols syms =
-    oneOf (List.map symbol syms)
-
-
-isLetter : Char -> Bool
-isLetter char =
-    Char.isLower char
-        || Char.isUpper char
-
-
-isIdentChar : Char -> Bool
-isIdentChar char =
-    isLetter char
-        || Char.isDigit char
-        || char
-        == '_'
-
-
-spaces : Parser ()
-spaces =
-    chompWhile (\c -> c == ' ' || c == '\t' || c == '\u{000D}' || c == '\u{000D}')
-
-
-{-| String representation of a Substitution
--}
-strSubstitution : Substitution -> String
-strSubstitution s =
-    "("
-        ++ (s
-                |> Dict.toList
-                |> List.map (\( v, t ) -> v ++ "->" ++ strTerm t)
-                |> String.join ","
-           )
-        ++ ")"
-
-
-{-| String representation of a Signed Formula
--}
-strSigned : Signed Formula -> String
-strSigned sf =
-    case sf of
-        T f ->
-            "T " ++ strFormula f
-
-        F f ->
-            "F " ++ strFormula f
-
-
 strBinF lf c rf =
     "(" ++ strFormula lf ++ c ++ strFormula rf ++ ")"
 
@@ -789,23 +296,6 @@ strFormula f =
 
         Exists bv sf ->
             strQF "∃" bv sf
-
-
-strArgs : List Term -> String
-strArgs ts =
-    "(" ++ String.join "," (List.map strTerm ts) ++ ")"
-
-
-{-| String representation of a Term
--}
-strTerm : Term -> String
-strTerm t =
-    case t of
-        Var v ->
-            v
-
-        Fun f ts ->
-            f ++ strArgs ts
 
 
 
