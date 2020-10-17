@@ -1,32 +1,27 @@
 module Formula exposing
-    ( Formula(..),  strFormula, 
-    substitute,  freeFormula, removeQuantifierAndSubstitute, isSubformulaOf)
+    ( Formula(..), toString, substitute, free, removeQuantifierAndSubstitute
+    , isSubformulaOf)
 
-{-| This library exports and parses formulas.
+{-| This library exports formulas.
 
 
 # Definitions
 
-@docs Formula, Signed, Substitution, Term
-
-
-# Parsers
-
-@docs parse, parseSigned, parseTerm
+@docs Formula
 
 
 # Strings
 
-@docs strFormula, strSigned, strTerm, strSubstitution, errorString
+@docs toString
 
 
 # Tableau helpers
 
-@docs substitute, isAlpha, isBeta, isGamma, isDelta, freeFormula, removeQuantifierAndSubstitute, isSignedComplementary, isSignedSubformulaOf, signedGetFormula, signedSubformulas, isSubformulaOf
+@docs substitute,  free, removeQuantifierAndSubstitute, isSubformulaOf
 
 -}
 
-import Term exposing(Term(..), Substitution, freeTermA, substTs, strArgs) 
+import Term exposing(Term(..), Substitution) 
 import Char
 import Dict exposing (Dict)
 import Result as R
@@ -86,27 +81,27 @@ isSubformulaOf a b =
 -- First-order syntactic operations
 --
 
-freeFormulaA : Formula -> Set String -> Set String
-freeFormulaA f fvs =
+freeA : Formula -> Set String -> Set String
+freeA f fvs =
     case f of
         Atom _ ts ->
-            List.foldl freeTermA fvs ts
+            List.foldl Term.freeA fvs ts
 
         ForAll x sf ->
-            Set.remove x <| freeFormulaA sf fvs
+            Set.remove x <| freeA sf fvs
 
         Exists x sf ->
-            Set.remove x <| freeFormulaA sf fvs
+            Set.remove x <| freeA sf fvs
 
         _ ->
-            List.foldl freeFormulaA fvs <| subformulas f
+            List.foldl freeA fvs <| subformulas f
 
 
 {-| Returns set of all free variables in given formula
 -}
-freeFormula : Formula -> Set String
-freeFormula f =
-    freeFormulaA f Set.empty
+free : Formula -> Set String
+free f =
+    freeA f Set.empty
 
 
 
@@ -140,35 +135,35 @@ removeQuantifierAndSubstitute substitution original =
 
 
 
-substF : Substitution -> Set String -> Formula -> Result String Formula
-substF σ bound f =
+subst : Substitution -> Set String -> Formula -> Result String Formula
+subst σ bound f =
     let
-        subst =
-            substF σ bound
+        substA =
+            subst σ bound
     in
     case f of
         Atom p ts ->
-            R.map (Atom p) (substTs σ bound ts)
+            R.map (Atom p) (Term.substs σ bound ts)
 
         ForAll x sf ->
             R.map (ForAll x)
-                (substF (Dict.remove x σ) (Set.insert x bound) sf)
+                (subst (Dict.remove x σ) (Set.insert x bound) sf)
 
         Exists x sf ->
             R.map (Exists x)
-                (substF (Dict.remove x σ) (Set.insert x bound) sf)
+                (subst (Dict.remove x σ) (Set.insert x bound) sf)
 
         Disj lf rf ->
-            R.map2 Disj (subst lf) (subst rf)
+            R.map2 Disj (substA lf) (substA rf)
 
         Conj lf rf ->
-            R.map2 Conj (subst lf) (subst rf)
+            R.map2 Conj (substA lf) (substA rf)
 
         Impl lf rf ->
-            R.map2 Impl (subst lf) (subst rf)
+            R.map2 Impl (substA lf) (substA rf)
 
         Neg sf ->
-            R.map Neg (subst sf)
+            R.map Neg (substA sf)
 
         _ ->
             Ok f
@@ -179,7 +174,7 @@ ErrMessage or Formula after substitution
 -}
 substitute : Substitution -> Formula -> Result String Formula
 substitute σ f =
-    substF σ Set.empty f
+    subst σ Set.empty f
 
 
 predicatesA f ps =
@@ -196,19 +191,10 @@ predicates f =
     predicatesA f Set.empty
 
 
-functionsTA t fs =
-    case t of
-        Fun f ts ->
-            Set.insert f <| List.foldl functionsTA fs ts
-
-        _ ->
-            fs
-
-
 functionsA f fs =
     case f of
         Atom p ts ->
-            List.foldl functionsTA fs ts
+            List.foldl Term.functionsA fs ts
 
         _ ->
             List.foldl functionsA fs <| subformulas f
@@ -219,21 +205,11 @@ functions f =
     functionsA f Set.empty
 
 
-variablesTA : Term -> Set String -> Set String
-variablesTA t vs =
-    case t of
-        Fun _ ts ->
-            List.foldl variablesTA vs ts
-
-        Var x ->
-            Set.insert x vs
-
-
 variablesA : Formula -> Set String -> Set String
 variablesA f vs =
     case f of
         Atom p ts ->
-            List.foldl variablesTA vs ts
+            List.foldl Term.variablesA vs ts
 
         _ ->
             List.foldl variablesA vs <| subformulas f
@@ -246,11 +222,11 @@ variables f =
 
 
 strBinF lf c rf =
-    "(" ++ strFormula lf ++ c ++ strFormula rf ++ ")"
+    "(" ++ toString lf ++ c ++ toString rf ++ ")"
 
 
 strQF q bv f =
-    q ++ bv ++ atomSpace f ++ strFormula f
+    q ++ bv ++ atomSpace f ++ toString f
 
 
 atomSpace f =
@@ -264,8 +240,8 @@ atomSpace f =
 
 {-| String representation of a Formula
 -}
-strFormula : Formula -> String
-strFormula f =
+toString : Formula -> String
+toString f =
     case f of
         FT ->
             "True"
@@ -277,10 +253,10 @@ strFormula f =
             p
 
         Atom p ts ->
-            p ++ strArgs ts
+            p ++ Term.strArgs ts
 
         Neg sf ->
-            "¬" ++ strFormula sf
+            "¬" ++ toString sf
 
         Conj lf rf ->
             strBinF lf "∧" rf

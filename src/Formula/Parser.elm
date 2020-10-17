@@ -1,4 +1,19 @@
-module FormulaParser exposing (parse, parseSigned, parseTerm)
+module Formula.Parser exposing 
+    (parse, parseSigned, parseTerm)
+
+{-| This library parses formulas.
+
+
+# Parsers
+
+@docs parse, parseSigned, parseTerm
+
+
+# Strings
+
+@docs errorString
+
+-}
 
 import Parser
     exposing
@@ -20,7 +35,9 @@ import Parser
         , variable
         )
 
-import Formula exposing(Formula(..), Term(..))
+import Formula exposing(Formula(..))
+import Formula.Signed exposing(Signed(..)) 
+import Term exposing(Term(..))
 import Set exposing (Set)
 import Dict exposing (Dict)
 
@@ -29,22 +46,6 @@ import Dict exposing (Dict)
 parseSigned : String -> Result (List Parser.DeadEnd) (Signed Formula)
 parseSigned =
     Parser.run (succeed identity |. spaces |= signedFormula |. spaces |. end)
-
-
-signedFormula : Parser (Signed Formula)
-signedFormula =
-    succeed identity
-        |. spaces
-        |= oneOf
-            [ succeed T
-                |. keyword "T"
-                |. spaces
-                |= formula
-            , succeed F
-                |. keyword "F"
-                |. spaces
-                |= formula
-            ]
 
 
 {-| Parses string to Term
@@ -66,6 +67,22 @@ parse =
 errorString : List Parser.DeadEnd -> String
 errorString e =
     "Invalid formula: " ++ Parser.deadEndsToString e
+
+
+signedFormula : Parser (Signed Formula)
+signedFormula =
+    succeed identity
+        |. spaces
+        |= oneOf
+            [ succeed T
+                |. keyword "T"
+                |. spaces
+                |= formula
+            , succeed F
+                |. keyword "F"
+                |. spaces
+                |= formula
+            ]
 
 
 formula : Parser Formula

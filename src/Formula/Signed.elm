@@ -1,7 +1,28 @@
-module SignedFormula exposing (Signed(..), strSigned, isAlpha, isBeta, isGamma, isDelta, 
-    isSignedComplementary, isSignedSubformulaOf, signedGetFormula, signedSubformulas)
+module Formula.Signed exposing 
+    (Signed(..), toString, isAlpha, isBeta, isGamma, isDelta 
+    , isComplementary, isSubformulaOf, getFormula, subformulas)
 
-import Formula exposing(Formula(..), strFormula)
+{-| This library exports signed formulas.
+
+
+# Definitions
+
+@docs Signed
+
+
+# Strings
+
+@docs toString
+
+
+# Tableau helpers
+
+@docs substitute, isAlpha, isBeta, isGamma, isDelta, isComplementary, isSubformulaOf, getFormula, subformulas
+
+-}
+
+
+import Formula exposing(Formula(..))
 
 
 {-| Signed with T[rue] or F[alse]
@@ -11,14 +32,14 @@ type Signed a
     | F a
 
 
-type SignedType
+type Type
     = Alpha
     | Beta
     | Gamma
     | Delta
 
 
-negType : SignedType -> SignedType
+negType : Type -> Type
 negType t =
     case t of
         Alpha ->
@@ -34,8 +55,8 @@ negType t =
             Gamma
 
 
-negSigned : Signed Formula -> Signed Formula
-negSigned sf =
+neg : Signed Formula -> Signed Formula
+neg sf =
     case sf of
         T f ->
             F f
@@ -44,8 +65,8 @@ negSigned sf =
             T f
 
 
-signedType : Signed Formula -> SignedType
-signedType sf =
+getType : Signed Formula -> Type
+getType sf =
     case sf of
         T FF ->
             Alpha
@@ -81,41 +102,41 @@ signedType sf =
             Delta
 
         F f ->
-            negType <| signedType <| T f
+            negType <| getType <| T f
 
 
 {-| Is the signed formula of type Alpha
 -}
 isAlpha : Signed Formula -> Bool
 isAlpha x =
-    Alpha == signedType x
+    Alpha == getType x
 
 
 {-| Is the signed formula of type Beta
 -}
 isBeta : Signed Formula -> Bool
 isBeta x =
-    Beta == signedType x
+    Beta == getType x
 
 
 {-| Is the signed formula of type Gamma
 -}
 isGamma : Signed Formula -> Bool
 isGamma x =
-    Gamma == signedType x
+    Gamma == getType x
 
 
 {-| Is the signed formula of type Delta
 -}
 isDelta : Signed Formula -> Bool
 isDelta x =
-    Delta == signedType x
+    Delta == getType x
 
 
 {-| Get signed subformulas as a list of signed formulas
 -}
-signedSubformulas : Signed Formula -> List (Signed Formula)
-signedSubformulas sf =
+subformulas : Signed Formula -> List (Signed Formula)
+subformulas sf =
     case sf of
         T (Neg f) ->
             [ F f ]
@@ -139,20 +160,20 @@ signedSubformulas sf =
             []
 
         F f ->
-            T f |> signedSubformulas |> List.map negSigned
+            T f |> subformulas |> List.map neg
 
 
 {-| Is the first a Signed subformula of the second
 -}
-isSignedSubformulaOf : Signed Formula -> Signed Formula -> Bool
-isSignedSubformulaOf a b =
-    List.member a (signedSubformulas b)
+isSubformulaOf : Signed Formula -> Signed Formula -> Bool
+isSubformulaOf a b =
+    List.member a (subformulas b)
 
 
 {-| Is the first Signed Formula complementary of the second Signed Formula
 -}
-isSignedComplementary : Signed Formula -> Signed Formula -> Bool
-isSignedComplementary a b =
+isComplementary : Signed Formula -> Signed Formula -> Bool
+isComplementary a b =
     case ( a, b ) of
         ( T x, F y ) ->
             x == y
@@ -166,8 +187,8 @@ isSignedComplementary a b =
 
 {-| Get Formula out of Signed Formula
 -}
-signedGetFormula : Signed Formula -> Formula
-signedGetFormula sf =
+getFormula : Signed Formula -> Formula
+getFormula sf =
     case sf of
         T f ->
             f
@@ -178,11 +199,11 @@ signedGetFormula sf =
 
 {-| String representation of a Signed Formula
 -}
-strSigned : Signed Formula -> String
-strSigned sf =
+toString: Signed Formula -> String
+toString sf =
     case sf of
         T f ->
-            "T " ++ strFormula f
+            "T " ++ Formula.toString f
 
         F f ->
-            "F " ++ strFormula f
+            "F " ++ Formula.toString f

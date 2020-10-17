@@ -1,6 +1,25 @@
-module Term exposing (Term(..), strTerm, Substitution, strSubstitution, freeTerm, freeTermA,
-            substTerm, substTs)
+module Term exposing 
+    (Term(..), Substitution, toString, strSubstitution, free, freeA
+    , substitute, substs, strArgs, functionsA, variablesA)
 
+{-| This library exports Terms.
+
+
+# Definitions
+
+@docs Term, Substitution
+
+
+# Strings
+
+@docs toString, strSubstitution
+
+
+# Tableau helpers
+
+@docs substitute
+
+-}
 
 import Set exposing(Set)
 import Dict exposing (Dict)
@@ -20,23 +39,23 @@ type alias Substitution =
     Dict String Term
 
 
-freeTermA : Term -> Set String -> Set String
-freeTermA t fvs =
+freeA : Term -> Set String -> Set String
+freeA t fvs =
     case t of
         Var x ->
             Set.insert x fvs
 
         Fun _ ts ->
-            List.foldl freeTermA fvs ts
+            List.foldl freeA fvs ts
 
 
-freeTerm : Term -> Set String
-freeTerm t =
-    freeTermA t Set.empty
+free : Term -> Set String
+free t =
+    freeA t Set.empty
 
 
-substTerm : Substitution -> Term -> Term
-substTerm sigma t =
+substitute : Substitution -> Term -> Term
+substitute sigma t =
     case t of
         Var x ->
             case Dict.get x sigma of
@@ -47,13 +66,13 @@ substTerm sigma t =
                     t
 
         Fun f ts ->
-            Fun f <| List.map (substTerm sigma) ts
+            Fun f <| List.map (substitute sigma) ts
 
 
-substT : Substitution -> Set String -> Term -> Result String Term
-substT σ bound tt =
+subst : Substitution -> Set String -> Term -> Result String Term
+subst σ bound tt =
     let
-        subst t =
+        substA t =
             case t of
                 Var x ->
                     case Dict.get x σ of   
@@ -64,16 +83,16 @@ substT σ bound tt =
                             Ok t
 
                 Fun f ts ->
-                    R.map (Fun f) <| substTs σ bound ts
+                    R.map (Fun f) <| substs σ bound ts
     in
-    subst tt
+    substA tt
 
 
 canSubst : String -> Term -> Set String -> Result String Term
 canSubst x t bound =
     let
         clashing =
-            Set.intersect bound (freeTerm t)
+            Set.intersect bound (free t)
 
         strVars xs =
             String.join ", " xs
@@ -102,7 +121,7 @@ canSubst x t bound =
         Err <|
             String.join " "
                 [ "Cannot substitute"
-                , strTerm t
+                , toString t
                 , "for"
                 , x ++ ";"
                 , varsToBe clashing
@@ -110,9 +129,9 @@ canSubst x t bound =
                 ]
 
 
-substTs : Substitution -> Set String -> List Term -> Result String (List Term)
-substTs σ bound lst =
-    mapResult (substT σ bound) lst
+substs : Substitution -> Set String -> List Term -> Result String (List Term)
+substs σ bound lst =
+    mapResult (subst σ bound) lst
 
 
 mapResult : (a -> Result x b) -> List a -> Result x (List b)
@@ -120,10 +139,29 @@ mapResult f =
     List.foldr (Result.map2 (::) << f) (Ok [])
 
 
+functionsA t fs =
+    case t of
+        Fun f ts ->
+            Set.insert f <| List.foldl functionsA fs ts
+
+        _ ->
+            fs
+
+
+variablesA : Term -> Set String -> Set String
+variablesA t vs =
+    case t of
+        Fun _ ts ->
+            List.foldl variablesA vs ts
+
+        Var x ->
+            Set.insert x vs
+
+
 {-| String representation of a Term
 -}
-strTerm : Term -> String
-strTerm t =
+toString : Term -> String
+toString t =
     case t of
         Var v ->
             v
@@ -133,7 +171,7 @@ strTerm t =
 
 strArgs : List Term -> String
 strArgs ts =
-    "(" ++ String.join "," (List.map strTerm ts) ++ ")"
+    "(" ++ String.join "," (List.map toString ts) ++ ")"
 
 
 {-| String representation of a Substitution
@@ -143,7 +181,7 @@ strSubstitution s =
     "("
         ++ (s
                 |> Dict.toList
-                |> List.map (\( v, t ) -> v ++ "->" ++ strTerm t)
+                |> List.map (\( v, t ) -> v ++ "->" ++ toString t)
                 |> String.join ","
            )
         ++ ")"
