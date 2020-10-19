@@ -1,6 +1,8 @@
 module Formula exposing
-    ( Formula(..), toString, substitute, free, removeQuantifierAndSubstitute
-    , isSubformulaOf)
+    ( Formula(..)
+    , toString
+    , substitute, free, removeQuantifierAndSubstitute, isSubformulaOf
+    )
 
 {-| This library exports formulas.
 
@@ -17,15 +19,15 @@ module Formula exposing
 
 # Tableau helpers
 
-@docs substitute,  free, removeQuantifierAndSubstitute, isSubformulaOf
+@docs substitute, free, removeQuantifierAndSubstitute, isSubformulaOf
 
 -}
 
-import Term exposing(Term(..), Substitution) 
 import Char
 import Dict exposing (Dict)
 import Result as R
 import Set exposing (Set)
+import Term exposing (Substitution, Term(..))
 
 
 {-| Formula
@@ -40,8 +42,6 @@ type Formula
     | Exists String Formula
     | FF
     | FT
-
-
 
 
 subformulas : Formula -> List Formula
@@ -81,6 +81,7 @@ isSubformulaOf a b =
 -- First-order syntactic operations
 --
 
+
 freeA : Formula -> Set String -> Set String
 freeA f fvs =
     case f of
@@ -102,8 +103,6 @@ freeA f fvs =
 free : Formula -> Set String
 free f =
     freeA f Set.empty
-
-
 
 
 {-| Removes quantifier from given signed formula and returns formula after substitution or error
@@ -131,8 +130,6 @@ removeQuantifierAndSubstitute substitution original =
 
             _ ->
                 Err "formula doesn't start with quantifier"
-
-
 
 
 subst : Substitution -> Set String -> Formula -> Result String Formula
@@ -220,12 +217,11 @@ variables f =
     variablesA f Set.empty
 
 
-
-strBinF lf c rf =
+binToString lf c rf =
     "(" ++ toString lf ++ c ++ toString rf ++ ")"
 
 
-strQF q bv f =
+qToString q bv f =
     q ++ bv ++ atomSpace f ++ toString f
 
 
@@ -253,25 +249,25 @@ toString f =
             p
 
         Atom p ts ->
-            p ++ Term.strArgs ts
+            p ++ Term.argsToString ts
 
         Neg sf ->
             "¬" ++ toString sf
 
         Conj lf rf ->
-            strBinF lf "∧" rf
+            binToString lf "∧" rf
 
         Disj lf rf ->
-            strBinF lf "∨" rf
+            binToString lf "∨" rf
 
         Impl lf rf ->
-            strBinF lf "→" rf
+            binToString lf "→" rf
 
         ForAll bv sf ->
-            strQF "∀" bv sf
+            qToString "∀" bv sf
 
         Exists bv sf ->
-            strQF "∃" bv sf
+            qToString "∃" bv sf
 
 
 

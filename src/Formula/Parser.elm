@@ -1,5 +1,4 @@
-module Formula.Parser exposing 
-    (parse, parseSigned, parseTerm)
+module Formula.Parser exposing (parse, parseSigned, parseTerm)
 
 {-| This library parses formulas.
 
@@ -15,6 +14,9 @@ module Formula.Parser exposing
 
 -}
 
+import Dict exposing (Dict)
+import Formula exposing (Formula(..))
+import Formula.Signed exposing (Signed(..))
 import Parser
     exposing
         ( (|.)
@@ -34,12 +36,9 @@ import Parser
         , symbol
         , variable
         )
-
-import Formula exposing(Formula(..))
-import Formula.Signed exposing(Signed(..)) 
-import Term exposing(Term(..))
 import Set exposing (Set)
-import Dict exposing (Dict)
+import Term exposing (Term(..))
+
 
 {-| Parse string to Signed Formula
 -}
@@ -195,5 +194,3 @@ isIdentChar char =
 spaces : Parser ()
 spaces =
     chompWhile (\c -> c == ' ' || c == '\t' || c == '\u{000D}' || c == '\u{000D}')
-
-

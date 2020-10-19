@@ -1,6 +1,9 @@
-module Term exposing 
-    (Term(..), Substitution, toString, strSubstitution, free, freeA
-    , substitute, substs, strArgs, functionsA, variablesA)
+module Term exposing
+    ( Term(..), Substitution
+    , toString, strSubstitution
+    , substitute
+    , argsToString, free, freeA, functionsA, substs, variablesA
+    )
 
 {-| This library exports Terms.
 
@@ -21,9 +24,9 @@ module Term exposing
 
 -}
 
-import Set exposing(Set)
 import Dict exposing (Dict)
 import Result as R
+import Set exposing (Set)
 
 
 {-| Type alias for term
@@ -75,7 +78,7 @@ subst σ bound tt =
         substA t =
             case t of
                 Var x ->
-                    case Dict.get x σ of   
+                    case Dict.get x σ of
                         Just xt ->
                             canSubst x xt bound
 
@@ -167,10 +170,11 @@ toString t =
             v
 
         Fun f ts ->
-            f ++ strArgs ts
+            f ++ argsToString ts
 
-strArgs : List Term -> String
-strArgs ts =
+
+argsToString : List Term -> String
+argsToString ts =
     "(" ++ String.join "," (List.map toString ts) ++ ")"
 
 

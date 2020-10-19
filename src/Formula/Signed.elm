@@ -1,6 +1,8 @@
-module Formula.Signed exposing 
-    (Signed(..), toString, isAlpha, isBeta, isGamma, isDelta 
-    , isComplementary, isSubformulaOf, getFormula, subformulas)
+module Formula.Signed exposing
+    ( Signed(..)
+    , toString
+    , isAlpha, isBeta, isGamma, isDelta, isComplementary, isSubformulaOf, getFormula, subformulas
+    )
 
 {-| This library exports signed formulas.
 
@@ -21,8 +23,7 @@ module Formula.Signed exposing
 
 -}
 
-
-import Formula exposing(Formula(..))
+import Formula exposing (Formula(..))
 
 
 {-| Signed with T[rue] or F[alse]
@@ -199,7 +200,7 @@ getFormula sf =
 
 {-| String representation of a Signed Formula
 -}
-toString: Signed Formula -> String
+toString : Signed Formula -> String
 toString sf =
     case sf of
         T f ->
