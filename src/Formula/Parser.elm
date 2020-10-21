@@ -7,11 +7,6 @@ module Formula.Parser exposing (parse, parseSigned, parseTerm)
 
 @docs parse, parseSigned, parseTerm
 
-
-# Strings
-
-@docs errorString
-
 -}
 
 import Dict exposing (Dict)

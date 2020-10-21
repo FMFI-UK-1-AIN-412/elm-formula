@@ -19,7 +19,7 @@ module Formula.Signed exposing
 
 # Tableau helpers
 
-@docs substitute, isAlpha, isBeta, isGamma, isDelta, isComplementary, isSubformulaOf, getFormula, subformulas
+@docs isAlpha, isBeta, isGamma, isDelta, isComplementary, isSubformulaOf, getFormula, subformulas
 
 -}
 
