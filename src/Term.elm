@@ -1,8 +1,8 @@
 module Term exposing
     ( Term(..), Substitution
-    , toString, strSubstitution
-    , substitute
-    , argsToString, free, freeA, functionsA, substs, variablesA
+    , toString, strSubstitution, argsToString
+    , substitute, substs
+    , free, freeA, functionsA, variablesA
     )
 
 {-| This library exports Terms.
@@ -15,12 +15,17 @@ module Term exposing
 
 # Strings
 
-@docs toString, strSubstitution
+@docs toString, strSubstitution, argsToString
 
 
 # Tableau helpers
 
-@docs substitute
+@docs substitute, substs
+
+
+# Symbol helpers
+
+@docs free, freeA, functionsA, variablesA
 
 -}
 
@@ -42,6 +47,8 @@ type alias Substitution =
     Dict String Term
 
 
+{-| freeA
+-}
 freeA : Term -> Set String -> Set String
 freeA t fvs =
     case t of
@@ -52,11 +59,15 @@ freeA t fvs =
             List.foldl freeA fvs ts
 
 
+{-| free
+-}
 free : Term -> Set String
 free t =
     freeA t Set.empty
 
 
+{-| substitute
+-}
 substitute : Substitution -> Term -> Term
 substitute sigma t =
     case t of
@@ -132,6 +143,8 @@ canSubst x t bound =
                 ]
 
 
+{-| substs
+-}
 substs : Substitution -> Set String -> List Term -> Result String (List Term)
 substs σ bound lst =
     mapResult (subst σ bound) lst
@@ -142,6 +155,9 @@ mapResult f =
     List.foldr (Result.map2 (::) << f) (Ok [])
 
 
+{-| functionsA
+-}
+functionsA : Term -> Set String -> Set String
 functionsA t fs =
     case t of
         Fun f ts ->
@@ -151,6 +167,8 @@ functionsA t fs =
             fs
 
 
+{-| variablesA
+-}
 variablesA : Term -> Set String -> Set String
 variablesA t vs =
     case t of
@@ -173,6 +191,8 @@ toString t =
             f ++ argsToString ts
 
 
+{-| String represenation of multiple Terms
+-}
 argsToString : List Term -> String
 argsToString ts =
     "(" ++ String.join "," (List.map toString ts) ++ ")"
