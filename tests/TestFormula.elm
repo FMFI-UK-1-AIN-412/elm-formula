@@ -3,9 +3,12 @@ module TestFormula exposing (..)
 import Dict
 import Expect
 import Formula exposing (..)
+import Formula.Parser
+import Formula.Signed exposing (Signed(..))
 import Fuzz exposing (int, list, string, tuple)
 import Parser
 import String
+import Term exposing (Substitution, Term(..))
 import Test exposing (..)
 
 
@@ -85,7 +88,7 @@ g =
 
 strTTest : String -> Term -> Test
 strTTest str term =
-    test str <| \() -> Expect.equal str (strTerm term)
+    test str <| \() -> Expect.equal str (Term.toString term)
 
 
 strTermTests : Test
@@ -100,7 +103,7 @@ strTermTests =
 
 strFTest : String -> Formula -> Test
 strFTest str formula =
-    test str <| \() -> Expect.equal str (strFormula formula)
+    test str <| \() -> Expect.equal str (Formula.toString formula)
 
 
 strFormulaTests : Test
@@ -122,7 +125,7 @@ strFormulaTests =
 
 strSignedTest : String -> Signed Formula -> Test
 strSignedTest str sf =
-    test str <| \() -> Expect.equal str (strSigned sf)
+    test str <| \() -> Expect.equal str (Formula.Signed.toString sf)
 
 
 strSignedTests : Test
@@ -136,12 +139,12 @@ strSignedTests =
 testSubformula failMsg1 failMsg2 assertion sub formula =
     let
         strSub =
-            strFormula sub
+            Formula.toString sub
 
         strF =
-            strFormula formula
+            Formula.toString formula
     in
-    test (strFormula sub ++ " isSubformulaOf " ++ strFormula formula) <|
+    test (Formula.toString sub ++ " isSubformulaOf " ++ Formula.toString formula) <|
         \() ->
             assertion
                 (strSub ++ " is " ++ failMsg1 ++ "subformula of " ++ strF ++ " (when it should " ++ failMsg2 ++ "be)")
@@ -189,14 +192,14 @@ isSubformulaOfTests =
 
 signedSubformulasTests =
     describe "signedSubformulas tests"
-        [ test "T Neg" <| \() -> Expect.equal (signedSubformulas <| T <| Neg a) [ F a ]
-        , test "F Neg" <| \() -> Expect.equal (signedSubformulas <| F <| Neg a) [ T a ]
-        , test "T Conj" <| \() -> Expect.equal (signedSubformulas <| T <| Conj a b) [ T a, T b ]
-        , test "F Conj" <| \() -> Expect.equal (signedSubformulas <| F <| Conj a b) [ F a, F b ]
-        , test "T Disj" <| \() -> Expect.equal (signedSubformulas <| T <| Disj a b) [ T a, T b ]
-        , test "F Disj" <| \() -> Expect.equal (signedSubformulas <| F <| Disj a b) [ F a, F b ]
-        , test "T Impl" <| \() -> Expect.equal (signedSubformulas <| T <| Impl a b) [ F a, T b ]
-        , test "F Impl" <| \() -> Expect.equal (signedSubformulas <| F <| Impl a b) [ T a, F b ]
+        [ test "T Neg" <| \() -> Expect.equal (Formula.Signed.subformulas <| T <| Neg a) [ F a ]
+        , test "F Neg" <| \() -> Expect.equal (Formula.Signed.subformulas <| F <| Neg a) [ T a ]
+        , test "T Conj" <| \() -> Expect.equal (Formula.Signed.subformulas <| T <| Conj a b) [ T a, T b ]
+        , test "F Conj" <| \() -> Expect.equal (Formula.Signed.subformulas <| F <| Conj a b) [ F a, F b ]
+        , test "T Disj" <| \() -> Expect.equal (Formula.Signed.subformulas <| T <| Disj a b) [ T a, T b ]
+        , test "F Disj" <| \() -> Expect.equal (Formula.Signed.subformulas <| F <| Disj a b) [ F a, F b ]
+        , test "T Impl" <| \() -> Expect.equal (Formula.Signed.subformulas <| T <| Impl a b) [ F a, T b ]
+        , test "F Impl" <| \() -> Expect.equal (Formula.Signed.subformulas <| F <| Impl a b) [ T a, F b ]
         ]
 
 
@@ -210,11 +213,11 @@ testParseFunction function string formula =
 
 
 testParse =
-    testParseFunction Formula.parse
+    testParseFunction Formula.Parser.parse
 
 
 testParseSigned =
-    testParseFunction Formula.parseSigned
+    testParseFunction Formula.Parser.parseSigned
 
 
 parseTests =
@@ -242,7 +245,7 @@ parseSignedTests =
 testSubstitution : Substitution -> Formula -> Formula -> Test
 testSubstitution subst original new =
     test
-        ("in formula " ++ (original |> Formula.strFormula) ++ " using subs " ++ Formula.strSubstitution subst)
+        ("in formula " ++ (original |> Formula.toString) ++ " using subs " ++ Term.strSubstitution subst)
         (\() -> Expect.equal (Ok new) (Formula.substitute subst original))
 
 
@@ -254,9 +257,9 @@ testSubstitutionFail : Substitution -> Formula -> Test
 testSubstitutionFail subst original =
     test
         ("substitution is not applicable in "
-            ++ Formula.strFormula original
+            ++ Formula.toString original
             ++ " by substituting "
-            ++ Formula.strSubstitution subst
+            ++ Term.strSubstitution subst
         )
         (\() -> Expect.err (Formula.substitute subst original))
 
@@ -264,14 +267,14 @@ testSubstitutionFail subst original =
 testRemoveQuantifierAndSubstitute : Substitution -> Formula -> Formula -> Test
 testRemoveQuantifierAndSubstitute subst original new =
     test
-        ("in formula " ++ (original |> Formula.strFormula) ++ " using subs " ++ Formula.strSubstitution subst)
+        ("in formula " ++ (original |> Formula.toString) ++ " using subs " ++ Term.strSubstitution subst)
         (\() -> Expect.equal (Ok new) (Formula.removeQuantifierAndSubstitute subst original))
 
 
 testRemoveQuantifierAndSubstituteFail : Substitution -> Formula -> Test
 testRemoveQuantifierAndSubstituteFail subst original =
     test
-        ("in formula " ++ (original |> Formula.strFormula) ++ " using subs " ++ Formula.strSubstitution subst)
+        ("in formula " ++ (original |> Formula.toString) ++ " using subs " ++ Term.strSubstitution subst)
         (\() -> Expect.err (Formula.removeQuantifierAndSubstitute subst original))
 
 
@@ -304,12 +307,12 @@ substitutionTests =
             (Neg (Conj (Neg (Atom "P" [ x ])) (Atom "Z" [ x ])))
         , testSubstitution
             (Dict.fromList [ ( "x", Var "k" ) ])
-            (Formula.parse "\\forall x \\forall k P(x,k)" |> Result.withDefault FF)
-            (Formula.parse "\\forall x \\forall k P(x,k)" |> Result.withDefault FF)
+            (Formula.Parser.parse "\\forall x \\forall k P(x,k)" |> Result.withDefault FF)
+            (Formula.Parser.parse "\\forall x \\forall k P(x,k)" |> Result.withDefault FF)
         , testSubstitution
             (Dict.fromList [ ( "x", d ), ( "d", x ) ])
-            (Formula.parse "\\forall x \\forall d P(x,d)" |> Result.withDefault FF)
-            (Formula.parse "\\forall x \\forall d P(x,d)" |> Result.withDefault FF)
+            (Formula.Parser.parse "\\forall x \\forall d P(x,d)" |> Result.withDefault FF)
+            (Formula.Parser.parse "\\forall x \\forall d P(x,d)" |> Result.withDefault FF)
 
         -- naraz
         , testSubstitution
