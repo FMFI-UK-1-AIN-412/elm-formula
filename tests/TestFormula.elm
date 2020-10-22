@@ -2,7 +2,7 @@ module TestFormula exposing (..)
 
 import Dict
 import Expect
-import Formula exposing (..)
+import Formula exposing (Formula(..))
 import Formula.Parser
 import Formula.Signed exposing (Signed(..))
 import Fuzz exposing (int, list, string, tuple)
@@ -148,7 +148,7 @@ testSubformula failMsg1 failMsg2 assertion sub formula =
         \() ->
             assertion
                 (strSub ++ " is " ++ failMsg1 ++ "subformula of " ++ strF ++ " (when it should " ++ failMsg2 ++ "be)")
-                (isSubformulaOf sub formula)
+                (Formula.isSubformulaOf sub formula)
 
 
 testIsSubformula =
