@@ -82,7 +82,14 @@ signedFormula =
 formula : Parser Formula
 formula =
     oneOf
-        [ succeed Atom
+        [ backtrackable <| succeed Eq
+            |= term
+            |. spaces
+            |. oneOfSymbols [ "≐", "=" ]
+            |. spaces
+            |= term
+            
+        , succeed Atom
             |= identifier
             |. spaces
             |= oneOf
@@ -100,6 +107,7 @@ formula =
         , backtrackable <| lazy (\_ -> binary [ "&", "∧", "/\\" ] Conj)
         , backtrackable <| lazy (\_ -> binary [ "|", "∨", "\\/" ] Disj)
         , backtrackable <| lazy (\_ -> binary [ "->", "→" ] Impl)
+        
         , succeed identity
             |. symbol "("
             |. spaces

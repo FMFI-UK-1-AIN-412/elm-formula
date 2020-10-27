@@ -40,6 +40,7 @@ type Formula
     | Impl Formula Formula
     | ForAll String Formula
     | Exists String Formula
+    | Eq Term Term
     | FF
     | FT
 
@@ -268,6 +269,9 @@ toString f =
 
         Exists bv sf ->
             qToString "∃" bv sf
+
+        Eq lt rt ->
+            Term.toString lt ++ "≐" ++ Term.toString rt
 
 
 

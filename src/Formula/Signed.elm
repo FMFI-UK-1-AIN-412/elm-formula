@@ -102,6 +102,12 @@ getType sf =
         T (Exists _ _) ->
             Delta
 
+        T (Eq _ _) ->
+            Alpha
+
+        F (Eq _ _) ->
+            Alpha
+
         F f ->
             negType <| getType <| T f
 
