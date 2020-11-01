@@ -82,14 +82,14 @@ signedFormula =
 formula : Parser Formula
 formula =
     oneOf
-        [ backtrackable <| succeed Eq
+        [ backtrackable <| succeed EqAtom
             |= term
             |. spaces
             |. oneOfSymbols [ "≐", "=" ]
             |. spaces
             |= term
             
-        , succeed Atom
+        , succeed PredAtom
             |= identifier
             |. spaces
             |= oneOf

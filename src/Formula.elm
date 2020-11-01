@@ -33,14 +33,14 @@ import Term exposing (Substitution, Term(..))
 {-| Formula
 -}
 type Formula
-    = Atom String (List Term)
+    = PredAtom String (List Term)
+    | EqAtom Term Term
     | Neg Formula
     | Disj Formula Formula
     | Conj Formula Formula
     | Impl Formula Formula
     | ForAll String Formula
     | Exists String Formula
-    | Eq Term Term
     | FF
     | FT
 
@@ -86,8 +86,11 @@ isSubformulaOf a b =
 freeA : Formula -> Set String -> Set String
 freeA f fvs =
     case f of
-        Atom _ ts ->
+        PredAtom _ ts ->
             List.foldl Term.freeA fvs ts
+
+        EqAtom lt rt ->
+            List.foldl Term.freeA fvs [lt, rt]
 
         ForAll x sf ->
             Set.remove x <| freeA sf fvs
@@ -140,8 +143,11 @@ subst σ bound f =
             subst σ bound
     in
     case f of
-        Atom p ts ->
-            R.map (Atom p) (Term.substs σ bound ts)
+        PredAtom p ts ->
+            R.map (PredAtom p) (Term.substs σ bound ts)
+
+        EqAtom lt rt ->
+            R.map2 EqAtom (Term.subst σ bound lt) (Term.subst σ bound rt)
 
         ForAll x sf ->
             R.map (ForAll x)
@@ -177,7 +183,7 @@ substitute σ f =
 
 predicatesA f ps =
     case f of
-        Atom p _ ->
+        PredAtom p _ ->
             Set.insert p ps
 
         _ ->
@@ -191,8 +197,11 @@ predicates f =
 
 functionsA f fs =
     case f of
-        Atom p ts ->
+        PredAtom p ts ->
             List.foldl Term.functionsA fs ts
+
+        EqAtom lt rt ->
+            List.foldl Term.functionsA fs [lt, rt]
 
         _ ->
             List.foldl functionsA fs <| subformulas f
@@ -206,8 +215,11 @@ functions f =
 variablesA : Formula -> Set String -> Set String
 variablesA f vs =
     case f of
-        Atom p ts ->
+        PredAtom p ts ->
             List.foldl Term.variablesA vs ts
+
+        EqAtom lt rt ->
+            List.foldl Term.variablesA vs [lt, rt]
 
         _ ->
             List.foldl variablesA vs <| subformulas f
@@ -228,7 +240,10 @@ qToString q bv f =
 
 atomSpace f =
     case f of
-        Atom _ _ ->
+        PredAtom _ _ ->
+            " "
+
+        EqAtom _ _ ->
             " "
 
         _ ->
@@ -246,11 +261,14 @@ toString f =
         FF ->
             "False"
 
-        Atom p [] ->
+        PredAtom p [] ->
             p
 
-        Atom p ts ->
+        PredAtom p ts ->
             p ++ Term.argsToString ts
+
+        EqAtom lt rt ->
+            Term.toString lt ++ "≐" ++ Term.toString rt
 
         Neg sf ->
             "¬" ++ toString sf
@@ -269,9 +287,6 @@ toString f =
 
         Exists bv sf ->
             qToString "∃" bv sf
-
-        Eq lt rt ->
-            Term.toString lt ++ "≐" ++ Term.toString rt
 
 
 
