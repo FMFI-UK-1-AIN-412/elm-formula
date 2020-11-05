@@ -226,24 +226,28 @@ parseTests =
     describe "parse tests"
         [ test "Eq" <| \() -> testParse "(d≐j)" <| EqAtom d j 
         , test "Eq2" <| \() -> testParse "d≐j" <| EqAtom d j
-        , test "Eq3" <| \() -> testParse "((a&b) | - d = j)" <| Disj (Conj a b) (Neg (EqAtom d j))
-        , test "Eq4" <| \() -> testParse "(-d = j & (a|b))" <| Conj (Neg (EqAtom d j)) (Disj a b)
-        , test "Eq5" <| \() -> testParse "∃x f(x)=x" <| Exists "x" (EqAtom (Fun "f" [x]) x)
-        , test "Eq6" <| \() -> testParse "\\forall x z=f(x)" <| ForAll "x" (EqAtom z (Fun "f" [x]))
-        , test "Eq7" <| \() -> testParse "∀x ∀y(-∀z f(x) = z  -> (p(x,z) & r(x,y,z)))" <| 
-            ForAll "x" (ForAll "y" (Impl (Neg(ForAll "z" (EqAtom (Fun "f"[x]) z))) (Conj (PredAtom "p" [x,z]) (PredAtom "r" [x,Var "y",z])))) 
-        , test "Eq8" <| \() -> testParse "∃x ∀y ((f(y) = x & -z = g(y)) | (∀z p(z,x) -> -r(z,x)))" <| 
-            Exists "x" (ForAll "y" (Disj (Conj (EqAtom (Fun "f" [Var "y"]) x) (Neg (EqAtom z (Fun "g" [Var "y"])))) (Impl (ForAll "z" (PredAtom "p" [z,x])) (Neg (PredAtom "r" [z,x])))))
-        , test "Eq9" <| \() -> testParse "\\forall x \\exists z(∀y f(x) = g(x,y) -> ¬∀y -p(x, y, z))" <| 
-            ForAll "x" (Exists "z" (Impl (ForAll "y" (EqAtom (Fun "f" [x])(Fun "g" [x, Var "y"]))) (Neg(ForAll "y" (Neg(PredAtom "p" [x, Var "y", z]))))))
-        , test "Eq10" <| \() -> testParse "∃x ∃y (- g(y,x) = f(x) | ∃z (-p(x, y) & f(y) = z))" <| 
-            Exists "x" (Exists "y" (Disj (Neg (EqAtom (Fun "g" [Var "y", x]) (Fun "f" [x]))) (Exists "z" (Conj (Neg (PredAtom "p" [x,Var "y"])) (EqAtom (Fun "f" [Var "y"]) z)))))
+        , test "NegEq" <| \() -> testParse "d ≠ j" <| Neg (EqAtom d j)
         , test "Neg " <| \() -> testParse "- a" <| Neg a
         , test "Disj" <| \() -> testParse "(a|b)" <| Disj a b
         , test "Conj" <| \() -> testParse "(a&b)" <| Conj a b
         , test "Impl" <| \() -> testParse "(a->b)" <| Impl a b
-        , test "Complex formula" <|
-            \() -> testParse "(-(a->b)|(b&a))" <| Disj (Neg (Impl a b)) (Conj b a)
+        , test "Eq3" <| \() -> testParse "((a&b) | - d = j)" <| Disj (Conj a b) (Neg (EqAtom d j))
+        , test "Eq4" <| \() -> testParse "(-d = j & (a|b))" <| Conj (Neg (EqAtom d j)) (Disj a b)
+        , test "NegEq2" <| \() -> testParse "((a&b) | d != j)" <| Disj (Conj a b) (Neg (EqAtom d j))
+        , test "NegEq3" <| \() -> testParse "(d != f(j) -> g(x) /= z)" <| Impl (Neg (EqAtom d (Fun "f" [j]))) (Neg (EqAtom (Fun "g" [x]) z))
+        , test "Quantified with atomic" <| \() -> testParse "∃x f(x)=x" <| Exists "x" (EqAtom (Fun "f" [x]) x)
+        , test "Quantified with atomic2" <| \() -> testParse "\\forall x z=f(x)" <| ForAll "x" (EqAtom z (Fun "f" [x]))
+        , test "Quantified with atomic3" <| \() -> testParse "∀x f(x)≠x" <| ForAll "x" (Neg (EqAtom (Fun "f" [x]) x))
+        , test "Quantified with atomic4" <| \() -> testParse "∃x p(x, y, z)" <| Exists "x" (PredAtom "p" [x, Var "y", z])
+        , test "Complex" <| \() -> testParse "(-(a->b)|(b&a))" <| Disj (Neg (Impl a b)) (Conj b a)
+        , test "Complex2" <| \() -> testParse "∀x ∀y(-∀z f(x) = z -> (p(x,z) & r(x,y,z)))" <| 
+            ForAll "x" (ForAll "y" (Impl (Neg(ForAll "z" (EqAtom (Fun "f"[x]) z))) (Conj (PredAtom "p" [x,z]) (PredAtom "r" [x,Var "y",z])))) 
+        , test "Complex3" <| \() -> testParse "∃x ∀y ((f(y) = x & z /= g(y)) | (∀z p(z,x) -> -r(z,x)))" <| 
+            Exists "x" (ForAll "y" (Disj (Conj (EqAtom (Fun "f" [Var "y"]) x) (Neg (EqAtom z (Fun "g" [Var "y"])))) (Impl (ForAll "z" (PredAtom "p" [z,x])) (Neg (PredAtom "r" [z,x])))))
+        , test "Complex4" <| \() -> testParse "\\forall x \\exists z(∀y f(x) = g(x,y) -> ¬∀y -p(x, y, z))" <| 
+            ForAll "x" (Exists "z" (Impl (ForAll "y" (EqAtom (Fun "f" [x])(Fun "g" [x, Var "y"]))) (Neg(ForAll "y" (Neg(PredAtom "p" [x, Var "y", z]))))))
+        , test "Complex5" <| \() -> testParse "∃x ∃y ( g(y,x) ≠ f(x) | ∃z (-p(x, y) & f(y) = z))" <| 
+            Exists "x" (Exists "y" (Disj (Neg (EqAtom (Fun "g" [Var "y", x]) (Fun "f" [x]))) (Exists "z" (Conj (Neg (PredAtom "p" [x,Var "y"])) (EqAtom (Fun "f" [Var "y"]) z))))) 
         ]
 
 
