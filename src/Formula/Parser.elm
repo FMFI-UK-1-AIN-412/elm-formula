@@ -83,8 +83,7 @@ formula : Parser Formula
 formula =
     oneOf
         [ backtrackable <| eq
-        , backtrackable <| succeed Neg
-            |= negEq
+        , backtrackable <| negEq
         , succeed PredAtom
             |= identifier
             |. spaces
@@ -103,7 +102,6 @@ formula =
         , backtrackable <| lazy (\_ -> binary [ "&", "∧", "/\\" ] Conj)
         , backtrackable <| lazy (\_ -> binary [ "|", "∨", "\\/" ] Disj)
         , backtrackable <| lazy (\_ -> binary [ "->", "→" ] Impl)
-        
         , succeed identity
             |. symbol "("
             |. spaces
@@ -138,16 +136,23 @@ quantified symbols constructor =
 
 
 eq : Parser Formula
-eq = succeed EqAtom
-    |= term
-    |. spaces
-    |. oneOfSymbols [ "≐", "=" ]
-    |. spaces
-    |= term
+eq =
+    succeed EqAtom
+        |= term
+        |. spaces
+        |. oneOfSymbols [ "≐", "=" ]
+        |. spaces
+        |= term
+
+
+negEqConst : Term -> Term -> Formula
+negEqConst a b =
+    Neg (EqAtom a b)
 
 
 negEq : Parser Formula
-negEq = succeed EqAtom
+negEq =
+    succeed negEqConst
         |= term
         |. spaces
         |. oneOfSymbols [ "!=", "/=", "≠" ]
