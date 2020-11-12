@@ -145,14 +145,14 @@ eq =
         |= term
 
 
-negEqConst : Term -> Term -> Formula
-negEqConst a b =
+negEqAtom : Term -> Term -> Formula
+negEqAtom a b =
     Neg (EqAtom a b)
 
 
 negEq : Parser Formula
 negEq =
-    succeed negEqConst
+    succeed negEqAtom
         |= term
         |. spaces
         |. oneOfSymbols [ "!=", "/=", "≠" ]
