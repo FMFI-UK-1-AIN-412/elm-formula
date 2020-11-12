@@ -75,10 +75,16 @@ getType sf =
         T FT ->
             Alpha
 
-        T (Atom _ _) ->
+        T (PredAtom _ _) ->
             Alpha
 
-        F (Atom _ _) ->
+        F (PredAtom _ _) ->
+            Alpha
+
+        T (EqAtom _ _) ->
+            Alpha
+
+        F (EqAtom _ _) ->
             Alpha
 
         T (Neg _) ->

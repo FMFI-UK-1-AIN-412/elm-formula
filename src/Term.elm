@@ -1,7 +1,7 @@
 module Term exposing
     ( Term(..), Substitution
     , toString, strSubstitution, argsToString
-    , substitute, substs
+    , substitute, substs, subst
     , free, freeA, functionsA, variablesA
     )
 
@@ -20,7 +20,7 @@ module Term exposing
 
 # Tableau helpers
 
-@docs substitute, substs
+@docs substitute, substs, subst
 
 
 # Symbol helpers
@@ -83,6 +83,8 @@ substitute sigma t =
             Fun f <| List.map (substitute sigma) ts
 
 
+{-| subst
+-}
 subst : Substitution -> Set String -> Term -> Result String Term
 subst σ bound tt =
     let

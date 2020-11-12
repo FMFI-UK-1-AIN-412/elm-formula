@@ -82,7 +82,9 @@ signedFormula =
 formula : Parser Formula
 formula =
     oneOf
-        [ succeed Atom
+        [ backtrackable <| eq
+        , backtrackable <| negEq
+        , succeed PredAtom
             |= identifier
             |. spaces
             |= oneOf
@@ -131,6 +133,31 @@ quantified symbols constructor =
         |= lazy (\_ -> identifier)
         |. spaces
         |= lazy (\_ -> formula)
+
+
+eq : Parser Formula
+eq =
+    succeed EqAtom
+        |= term
+        |. spaces
+        |. oneOfSymbols [ "≐", "=" ]
+        |. spaces
+        |= term
+
+
+negEqAtom : Term -> Term -> Formula
+negEqAtom a b =
+    Neg (EqAtom a b)
+
+
+negEq : Parser Formula
+negEq =
+    succeed negEqAtom
+        |= term
+        |. spaces
+        |. oneOfSymbols [ "!=", "/=", "≠" ]
+        |. spaces
+        |= term
 
 
 args : Parser (List Term)
