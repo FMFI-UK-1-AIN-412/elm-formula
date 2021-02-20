@@ -102,6 +102,9 @@ getType sf =
         T (Impl _ _) ->
             Beta
 
+        T (Equiv _ _) ->
+            Alpha
+
         T (ForAll _ _) ->
             Gamma
 
@@ -156,6 +159,9 @@ subformulas sf =
 
         T (Impl l r) ->
             [ F l, T r ]
+
+        T (Equiv l r) ->
+            [T (Impl l r), T (Impl r l)]
 
         T (ForAll _ f) ->
             [ T f ]
