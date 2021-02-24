@@ -161,7 +161,7 @@ subformulas sf =
             [ F l, T r ]
 
         T (Equiv l r) ->
-            [T (Impl l r), T (Impl r l)]
+            [ T (Impl l r), T (Impl r l) ]
 
         T (ForAll _ f) ->
             [ T f ]
