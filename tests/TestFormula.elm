@@ -167,10 +167,10 @@ testIsNotSubformula =
 
 
 binIsSubformulaTests conn fa fb =
-    [ testIsSubformula fa (Conj fa fa)
-    , testIsSubformula fa (Conj fa fb)
-    , testIsSubformula fa (Conj fb fa)
-    , testIsNotSubformula fa (Conj fb fb)
+    [ testIsSubformula fa (conn fa fa)
+    , testIsSubformula fa (conn fa fb)
+    , testIsSubformula fa (conn fb fa)
+    , testIsNotSubformula fa (conn fb fb)
     ]
 
 
@@ -181,9 +181,9 @@ isSubformulaOfTests =
         , testIsSubformula a (Neg a)
         , testIsNotSubformula a (Neg b)
         , describe "Conj" <| binIsSubformulaTests Conj a b
-        , describe "Disj" <| binIsSubformulaTests Conj a b
-        , describe "Impl" <| binIsSubformulaTests Conj a b
-        , describe "Equiv" <| binIsSubformulaTests Conj a b
+        , describe "Disj" <| binIsSubformulaTests Disj a b
+        , describe "Impl" <| binIsSubformulaTests Impl a b
+        , describe "Equiv" <| binIsSubformulaTests Equiv a b
         , describe "Conj bigger " <| binIsSubformulaTests Conj (Impl (Neg a) b) (Conj b (Neg a))
         , describe "Disj bigger " <| binIsSubformulaTests Disj (Impl (Neg a) b) (Disj b (Neg a))
         , describe "Impl bigger " <| binIsSubformulaTests Impl (Impl (Neg a) b) (Impl b (Neg a))
