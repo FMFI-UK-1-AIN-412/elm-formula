@@ -1,4 +1,4 @@
-module Formula.Parser exposing (parse, parseSigned, parseTerm)
+module Formula.Parser exposing (parse, parseSigned, parseTerm, parseSubstitution)
 
 {-| This library parses formulas.
 
@@ -54,6 +54,11 @@ parseTerm =
 parse : String -> Result (List Parser.DeadEnd) Formula
 parse =
     Parser.run (succeed identity |. spaces |= formula |. spaces |. end)
+
+{- Parse string to Substitution -}
+parseSubstitution : String -> Result (List Parser.DeadEnd) Term.Substitution
+parseSubstitution =
+    Parser.run (succeed identity |. spaces |= substitution |. spaces |. end)
 
 
 {-| Format parsing error
@@ -183,6 +188,48 @@ term =
                     , succeed (Var name)
                     ]
             )
+
+
+substitution : Parser (Term.Substitution)
+substitution =
+  Parser.loop [] substitutionHelp
+
+
+substitutionHelp : List (String, Term)  -> Parser (Parser.Step (List (String, Term) ) Term.Substitution)
+substitutionHelp items =
+    let
+        checkItem itemsSoFar item =
+            if List.length items > 0 then
+                Parser.Loop (item :: itemsSoFar)
+            else 
+                Parser.Done (itemsSoFar |> Dict.fromList)
+    in
+    oneOf
+    [ succeed (checkItem items)
+        |. symbol ","
+        |. spaces
+        |= substPair 
+    , succeed (\item -> (Parser.Loop (item :: items)))
+        |= substPair  
+        |. spaces
+
+    , succeed ()
+        |> map (\_ -> (Parser.Done (items |> Dict.fromList))) 
+    ]
+
+
+makeSubstPair : String -> Term -> (String, Term) 
+makeSubstPair s t =
+    (s, t)
+
+substPair : Parser (String, Term) 
+substPair = 
+    succeed makeSubstPair
+        |= identifier
+        |. spaces
+        |. oneOfSymbols [ "->" ]
+        |. spaces
+        |= term
 
 
 identifier : Parser String
