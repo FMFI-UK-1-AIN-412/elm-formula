@@ -90,7 +90,7 @@ freeA f fvs =
             List.foldl Term.freeA fvs ts
 
         EqAtom lt rt ->
-            List.foldl Term.freeA fvs [lt, rt]
+            List.foldl Term.freeA fvs [ lt, rt ]
 
         ForAll x sf ->
             Set.remove x <| freeA sf fvs
@@ -201,7 +201,7 @@ functionsA f fs =
             List.foldl Term.functionsA fs ts
 
         EqAtom lt rt ->
-            List.foldl Term.functionsA fs [lt, rt]
+            List.foldl Term.functionsA fs [ lt, rt ]
 
         _ ->
             List.foldl functionsA fs <| subformulas f
@@ -219,7 +219,7 @@ variablesA f vs =
             List.foldl Term.variablesA vs ts
 
         EqAtom lt rt ->
-            List.foldl Term.variablesA vs [lt, rt]
+            List.foldl Term.variablesA vs [ lt, rt ]
 
         _ ->
             List.foldl variablesA vs <| subformulas f

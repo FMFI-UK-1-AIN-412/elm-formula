@@ -1,4 +1,7 @@
-module Formula.Parser exposing (parse, parseSigned, parseTerm, parseSubstitution)
+module Formula.Parser exposing
+    ( parse, parseSigned, parseTerm
+    , parseSubstitution
+    )
 
 {-| This library parses formulas.
 
@@ -55,7 +58,11 @@ parse : String -> Result (List Parser.DeadEnd) Formula
 parse =
     Parser.run (succeed identity |. spaces |= formula |. spaces |. end)
 
+
+
 {- Parse string to Substitution -}
+
+
 parseSubstitution : String -> Result (List Parser.DeadEnd) Term.Substitution
 parseSubstitution =
     Parser.run (succeed identity |. spaces |= substitution |. spaces |. end)
@@ -190,40 +197,41 @@ term =
             )
 
 
-substitution : Parser (Term.Substitution)
+substitution : Parser Term.Substitution
 substitution =
-  Parser.loop [] substitutionHelp
+    Parser.loop [] substitutionHelp
 
 
-substitutionHelp : List (String, Term)  -> Parser (Parser.Step (List (String, Term) ) Term.Substitution)
+substitutionHelp : List ( String, Term ) -> Parser (Parser.Step (List ( String, Term )) Term.Substitution)
 substitutionHelp items =
     let
         checkItem itemsSoFar item =
             if List.length items > 0 then
                 Parser.Loop (item :: itemsSoFar)
-            else 
+
+            else
                 Parser.Done (itemsSoFar |> Dict.fromList)
     in
     oneOf
-    [ succeed (checkItem items)
-        |. symbol ","
-        |. spaces
-        |= substPair 
-    , succeed (\item -> (Parser.Loop (item :: items)))
-        |= substPair  
-        |. spaces
+        [ succeed (checkItem items)
+            |. symbol ","
+            |. spaces
+            |= substPair
+        , succeed (\item -> Parser.Loop (item :: items))
+            |= substPair
+            |. spaces
+        , succeed ()
+            |> map (\_ -> Parser.Done (items |> Dict.fromList))
+        ]
 
-    , succeed ()
-        |> map (\_ -> (Parser.Done (items |> Dict.fromList))) 
-    ]
 
-
-makeSubstPair : String -> Term -> (String, Term) 
+makeSubstPair : String -> Term -> ( String, Term )
 makeSubstPair s t =
-    (s, t)
+    ( s, t )
 
-substPair : Parser (String, Term) 
-substPair = 
+
+substPair : Parser ( String, Term )
+substPair =
     succeed makeSubstPair
         |= identifier
         |. spaces
