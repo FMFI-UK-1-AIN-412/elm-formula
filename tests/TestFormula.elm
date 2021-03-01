@@ -205,10 +205,10 @@ signedSubformulasTests =
         ]
 
 
-testParseFunction function string formula =
+testParseFunction function string item =
     case function string of
         Ok value ->
-            Expect.equal value formula
+            Expect.equal value item
 
         Err error ->
             Expect.fail <| "Parsing failed: " ++ Parser.deadEndsToString error
@@ -220,6 +220,12 @@ testParse =
 
 testParseSigned =
     testParseFunction Formula.Parser.parseSigned
+
+testParseSubst = 
+    testParseFunction Formula.Parser.parseSubstitution
+
+testParseSubstFail str = 
+    Expect.err <| Formula.Parser.parseSubstitution str
 
 
 parseTests =
@@ -239,6 +245,16 @@ parseTests =
         , test "Quantified with atomic2" <| \() -> testParse "\\forall x z=f(x)" <| ForAll "x" (EqAtom z (Fun "f" [x]))
         , test "Quantified with atomic3" <| \() -> testParse "∀x f(x)≠x" <| ForAll "x" (Neg (EqAtom (Fun "f" [x]) x))
         , test "Quantified with atomic4" <| \() -> testParse "∃x p(x, y, z)" <| Exists "x" (PredAtom "p" [x, Var "y", z])
+        , test "one subst pair" <| \() -> testParseSubst "a -> b" <| Dict.fromList [("a", Var "b")]
+        , test "four subst pairs" <| \() -> testParseSubst "b -> b, a -> a, c -> c, x -> x" <| Dict.fromList [("b", Var "b"),("a", Var "a"),("c", Var "c"),("x", Var "x")]
+        , test "function in subst" <| \() -> testParseSubst "b -> f(b), a -> f(a)" <| Dict.fromList [("b", Fun "f" [Var "b"]),("a", Fun "f" [Var "a"])]
+        , test "functions in subst" <| \() -> testParseSubst "axs -> f(b,a,c), a -> f(a,b)" <| Dict.fromList [("axs", Fun "f" [Var "b",Var "a",Var "c"]),("a", Fun "f" [Var "a",Var "b"])]
+        , test "many spaces" <| \() -> testParseSubst "  b    -> f(b)  ,   a ->   f(a)  " <| Dict.fromList [("b", Fun "f" [Var "b"]),("a", Fun "f" [Var "a"])]
+        , test "comma at the end" <| \() ->  testParseSubstFail "b -> f(b), a -> f(a)," 
+        , test "comma at the start" <| \() ->  testParseSubstFail ",b -> f(b), a -> f(a)" 
+        , test "commas" <| \() ->  testParseSubstFail "b -> f(b),, a -> f(a)" 
+        , test "fun instead of var" <| \() ->  testParseSubstFail "f(b) -> f(b), a -> f(a)" 
+        , test "fun instead of var2" <| \() ->  testParseSubstFail "b -> f(b), a -> f(a), g(x) -> g(x)" 
         , test "Complex" <| \() -> testParse "(-(a->b)|(b&a))" <| Disj (Neg (Impl a b)) (Conj b a)
         , test "Complex2" <| \() -> testParse "∀x ∀y(-∀z f(x) = z -> (p(x,z) & r(x,y,z)))" <| 
             ForAll "x" (ForAll "y" (Impl (Neg(ForAll "z" (EqAtom (Fun "f"[x]) z))) (Conj (PredAtom "p" [x,z]) (PredAtom "r" [x,Var "y",z])))) 
