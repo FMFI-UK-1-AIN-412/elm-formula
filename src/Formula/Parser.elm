@@ -64,8 +64,8 @@ parse =
 
 
 parseSubstitution : String -> Result (List Parser.DeadEnd) Term.Substitution
-parseSubstitution =
-    Parser.run (succeed identity |. spaces |= substitution |. spaces |. end)
+parseSubstitution str =
+    Parser.run (succeed identity |. spaces |= substitution |. spaces |. end) ("{" ++ str ++ "}")
 
 
 {-| Format parsing error
@@ -199,30 +199,15 @@ term =
 
 substitution : Parser Term.Substitution
 substitution =
-    Parser.loop [] substitutionHelp
-
-
-substitutionHelp : List ( String, Term ) -> Parser (Parser.Step (List ( String, Term )) Term.Substitution)
-substitutionHelp items =
-    let
-        checkItem itemsSoFar item =
-            if List.length items > 0 then
-                Parser.Loop (item :: itemsSoFar)
-
-            else
-                Parser.Done (itemsSoFar |> Dict.fromList)
-    in
-    oneOf
-        [ succeed (checkItem items)
-            |. symbol ","
-            |. spaces
-            |= substPair
-        , succeed (\item -> Parser.Loop (item :: items))
-            |= substPair
-            |. spaces
-        , succeed ()
-            |> map (\_ -> Parser.Done (items |> Dict.fromList))
-        ]
+    Parser.sequence
+        { start = "{"
+        , separator = ","
+        , end = "}"
+        , spaces = spaces
+        , item = substPair
+        , trailing = Forbidden
+        }
+        |> map Dict.fromList
 
 
 makeSubstPair : String -> Term -> ( String, Term )
