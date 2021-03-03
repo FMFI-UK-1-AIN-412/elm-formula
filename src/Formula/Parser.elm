@@ -57,7 +57,8 @@ parse =
 
 
 
-{- Parse string to Substitution -}
+{-| Parse string to Substitution 
+-}
 
 
 parseSubstitution : String -> Result (List Parser.DeadEnd) Term.Substitution
