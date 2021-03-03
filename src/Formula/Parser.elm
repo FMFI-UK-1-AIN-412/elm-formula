@@ -8,7 +8,7 @@ module Formula.Parser exposing
 
 # Parsers
 
-@docs parse, parseSigned, parseTerm
+@docs parse, parseSigned, parseTerm, parseSubstitution
 
 -}
 
