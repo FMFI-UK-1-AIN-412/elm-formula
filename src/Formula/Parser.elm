@@ -56,11 +56,8 @@ parse =
     Parser.run (succeed identity |. spaces |= formula |. spaces |. end)
 
 
-
-{-| Parse string to Substitution 
+{-| Parse string to Substitution
 -}
-
-
 parseSubstitution : String -> Result (List Parser.DeadEnd) Term.Substitution
 parseSubstitution str =
     Parser.run (succeed identity |. spaces |= substitution |. spaces |. end) ("{" ++ str ++ "}")
@@ -197,28 +194,23 @@ term =
 
 substitution : Parser Term.Substitution
 substitution =
-    Parser.sequence
-        { start = "{"
-        , separator = ","
-        , end = "}"
-        , spaces = spaces
-        , item = substPair
-        , trailing = Forbidden
-        }
-        |> map Dict.fromList
-
-
-makeSubstPair : String -> Term -> ( String, Term )
-makeSubstPair s t =
-    ( s, t )
+    map Dict.fromList <|
+        Parser.sequence
+            { start = "{"
+            , separator = ","
+            , end = "}"
+            , spaces = spaces
+            , item = substPair
+            , trailing = Forbidden
+            }
 
 
 substPair : Parser ( String, Term )
 substPair =
-    succeed makeSubstPair
+    succeed Tuple.pair
         |= identifier
         |. spaces
-        |. oneOfSymbols [ "->" ]
+        |. oneOfSymbols [ "->", "→", "↦" ]
         |. spaces
         |= term
 

@@ -248,6 +248,9 @@ parseTests =
         , test "Quantified with atomic3" <| \() -> testParse "∀x f(x)≠x" <| ForAll "x" (Neg (EqAtom (Fun "f" [ x ]) x))
         , test "Quantified with atomic4" <| \() -> testParse "∃x p(x, y, z)" <| Exists "x" (PredAtom "p" [ x, Var "y", z ])
         , test "one subst pair" <| \() -> testParseSubst "a -> b" <| Dict.fromList [ ( "a", Var "b" ) ]
+        , test "one subst pair2" <| \() -> testParseSubst "a → b" <| Dict.fromList [ ( "a", Var "b" ) ]
+        , test "one subst pair3" <| \() -> testParseSubst "a ↦ b" <| Dict.fromList [ ( "a", Var "b" ) ]
+        , test "different arrows" <| \() -> testParseSubst "b -> b, a → a, c ↦ c" <| Dict.fromList [ ( "b", Var "b" ), ( "a", Var "a" ), ( "c", Var "c" ) ]
         , test "four subst pairs" <| \() -> testParseSubst "b -> b, a -> a, c -> c, x -> x" <| Dict.fromList [ ( "b", Var "b" ), ( "a", Var "a" ), ( "c", Var "c" ), ( "x", Var "x" ) ]
         , test "function in subst" <| \() -> testParseSubst "b -> f(b), a -> f(a)" <| Dict.fromList [ ( "b", Fun "f" [ Var "b" ] ), ( "a", Fun "f" [ Var "a" ] ) ]
         , test "functions in subst" <| \() -> testParseSubst "axs -> f(b,a,c), a -> f(a,b)" <| Dict.fromList [ ( "axs", Fun "f" [ Var "b", Var "a", Var "c" ] ), ( "a", Fun "f" [ Var "a", Var "b" ] ) ]
