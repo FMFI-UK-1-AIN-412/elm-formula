@@ -1,7 +1,4 @@
-module Formula.Parser exposing
-    ( parse, parseSigned, parseTerm
-    , parseSubstitution
-    )
+module Formula.Parser exposing (parse, parseSigned, parseTerm, parseSubstitution)
 
 {-| This library parses formulas.
 
