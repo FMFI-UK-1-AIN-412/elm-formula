@@ -39,6 +39,7 @@ type Formula
     | Disj Formula Formula
     | Conj Formula Formula
     | Impl Formula Formula
+    | Equiv Formula Formula
     | ForAll String Formula
     | Exists String Formula
     | FF
@@ -58,6 +59,9 @@ subformulas f =
             [ lf, rf ]
 
         Impl lf rf ->
+            [ lf, rf ]
+
+        Equiv lf rf ->
             [ lf, rf ]
 
         ForAll _ sf ->
@@ -90,7 +94,7 @@ freeA f fvs =
             List.foldl Term.freeA fvs ts
 
         EqAtom lt rt ->
-            List.foldl Term.freeA fvs [lt, rt]
+            List.foldl Term.freeA fvs [ lt, rt ]
 
         ForAll x sf ->
             Set.remove x <| freeA sf fvs
@@ -166,6 +170,9 @@ subst σ bound f =
         Impl lf rf ->
             R.map2 Impl (substA lf) (substA rf)
 
+        Equiv lf rf ->
+            R.map2 Equiv (substA lf) (substA rf)
+
         Neg sf ->
             R.map Neg (substA sf)
 
@@ -201,7 +208,7 @@ functionsA f fs =
             List.foldl Term.functionsA fs ts
 
         EqAtom lt rt ->
-            List.foldl Term.functionsA fs [lt, rt]
+            List.foldl Term.functionsA fs [ lt, rt ]
 
         _ ->
             List.foldl functionsA fs <| subformulas f
@@ -219,7 +226,7 @@ variablesA f vs =
             List.foldl Term.variablesA vs ts
 
         EqAtom lt rt ->
-            List.foldl Term.variablesA vs [lt, rt]
+            List.foldl Term.variablesA vs [ lt, rt ]
 
         _ ->
             List.foldl variablesA vs <| subformulas f
@@ -281,6 +288,9 @@ toString f =
 
         Impl lf rf ->
             binToString lf "→" rf
+
+        Equiv lf rf ->
+            binToString lf "↔" rf
 
         ForAll bv sf ->
             qToString "∀" bv sf
