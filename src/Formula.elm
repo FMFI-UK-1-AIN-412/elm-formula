@@ -39,6 +39,7 @@ type Formula
     | Disj Formula Formula
     | Conj Formula Formula
     | Impl Formula Formula
+    | Equiv Formula Formula
     | ForAll String Formula
     | Exists String Formula
     | FF
@@ -58,6 +59,9 @@ subformulas f =
             [ lf, rf ]
 
         Impl lf rf ->
+            [ lf, rf ]
+
+        Equiv lf rf ->
             [ lf, rf ]
 
         ForAll _ sf ->
@@ -165,6 +169,9 @@ subst σ bound f =
 
         Impl lf rf ->
             R.map2 Impl (substA lf) (substA rf)
+
+        Equiv lf rf ->
+            R.map2 Equiv (substA lf) (substA rf)
 
         Neg sf ->
             R.map Neg (substA sf)
@@ -281,6 +288,9 @@ toString f =
 
         Impl lf rf ->
             binToString lf "→" rf
+
+        Equiv lf rf ->
+            binToString lf "↔" rf
 
         ForAll bv sf ->
             qToString "∀" bv sf

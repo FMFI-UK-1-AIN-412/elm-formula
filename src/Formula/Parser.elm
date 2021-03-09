@@ -109,6 +109,7 @@ formula =
         , backtrackable <| lazy (\_ -> binary [ "&", "∧", "/\\" ] Conj)
         , backtrackable <| lazy (\_ -> binary [ "|", "∨", "\\/" ] Disj)
         , backtrackable <| lazy (\_ -> binary [ "->", "→" ] Impl)
+        , backtrackable <| lazy (\_ -> binary [ "<->", "↔" ] Equiv)
         , succeed identity
             |. symbol "("
             |. spaces

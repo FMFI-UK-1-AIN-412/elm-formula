@@ -115,6 +115,7 @@ strFormulaTests =
         , strFTest "(a∧b)" <| Conj a b
         , strFTest "(a∨b)" <| Disj a b
         , strFTest "(a→b)" <| Impl a b
+        , strFTest "(a↔b)" <| Equiv a b
         , strFTest "(¬(a→b)∨¬(b→a))" <| Disj (Neg (Impl a b)) (Neg (Impl b a))
         , strFTest "((a∧¬b)→(a∨(b→a)))" <| Impl (Conj a (Neg b)) (Disj a (Impl b a))
         , strFTest "∀x ppp(x)" <| ForAll "x" (p [ x ])
@@ -166,10 +167,10 @@ testIsNotSubformula =
 
 
 binIsSubformulaTests conn fa fb =
-    [ testIsSubformula fa (Conj fa fa)
-    , testIsSubformula fa (Conj fa fb)
-    , testIsSubformula fa (Conj fb fa)
-    , testIsNotSubformula fa (Conj fb fb)
+    [ testIsSubformula fa (conn fa fa)
+    , testIsSubformula fa (conn fa fb)
+    , testIsSubformula fa (conn fb fa)
+    , testIsNotSubformula fa (conn fb fb)
     ]
 
 
@@ -180,11 +181,13 @@ isSubformulaOfTests =
         , testIsSubformula a (Neg a)
         , testIsNotSubformula a (Neg b)
         , describe "Conj" <| binIsSubformulaTests Conj a b
-        , describe "Disj" <| binIsSubformulaTests Conj a b
-        , describe "Impl" <| binIsSubformulaTests Conj a b
+        , describe "Disj" <| binIsSubformulaTests Disj a b
+        , describe "Impl" <| binIsSubformulaTests Impl a b
+        , describe "Equiv" <| binIsSubformulaTests Equiv a b
         , describe "Conj bigger " <| binIsSubformulaTests Conj (Impl (Neg a) b) (Conj b (Neg a))
         , describe "Disj bigger " <| binIsSubformulaTests Disj (Impl (Neg a) b) (Disj b (Neg a))
         , describe "Impl bigger " <| binIsSubformulaTests Impl (Impl (Neg a) b) (Impl b (Neg a))
+        , describe "Equiv bigger " <| binIsSubformulaTests Equiv (Impl (Neg a) b) (Conj b (Neg a))
         , testIsSubformula (Impl a b) (ForAll "x" (Impl a b))
         , testIsSubformula (Impl a b) (Exists "x" (Impl a b))
         , testIsNotSubformula (PredAtom "x" []) (ForAll "x" (Impl a b))
@@ -202,6 +205,8 @@ signedSubformulasTests =
         , test "F Disj" <| \() -> Expect.equal (Formula.Signed.subformulas <| F <| Disj a b) [ F a, F b ]
         , test "T Impl" <| \() -> Expect.equal (Formula.Signed.subformulas <| T <| Impl a b) [ F a, T b ]
         , test "F Impl" <| \() -> Expect.equal (Formula.Signed.subformulas <| F <| Impl a b) [ T a, F b ]
+        , test "T Equiv" <| \() -> Expect.equal (Formula.Signed.subformulas <| T <| Equiv a b) [ T (Impl a b), T (Impl b a) ]
+        , test "F Equiv" <| \() -> Expect.equal (Formula.Signed.subformulas <| F <| Equiv a b) [ F (Impl a b), F (Impl b a) ]
         ]
 
 
@@ -234,15 +239,27 @@ parseTests =
     describe "parse tests"
         [ test "Eq" <| \() -> testParse "(d≐j)" <| EqAtom d j
         , test "Eq2" <| \() -> testParse "d≐j" <| EqAtom d j
+        , test "Eq3" <| \() -> testParse "d=j" <| EqAtom d j
         , test "NegEq" <| \() -> testParse "d ≠ j" <| Neg (EqAtom d j)
+        , test "NegEq2" <| \() -> testParse "d!=j" <| Neg (EqAtom d j)
+        , test "NegEq3" <| \() -> testParse "d /= j" <| Neg (EqAtom d j)
         , test "Neg " <| \() -> testParse "- a" <| Neg a
+        , test "Neg2 " <| \() -> testParse "¬a" <| Neg a
+        , test "Neg3 " <| \() -> testParse "~a" <| Neg a
         , test "Disj" <| \() -> testParse "(a|b)" <| Disj a b
+        , test "Disj2" <| \() -> testParse "(a∨b)" <| Disj a b
+        , test "Disj3" <| \() -> testParse "(a\\/b)" <| Disj a b
         , test "Conj" <| \() -> testParse "(a&b)" <| Conj a b
+        , test "Conj2" <| \() -> testParse "(a∧b)" <| Conj a b
+        , test "Conj3" <| \() -> testParse "(a/\\b)" <| Conj a b
         , test "Impl" <| \() -> testParse "(a->b)" <| Impl a b
-        , test "Eq3" <| \() -> testParse "((a&b) | - d = j)" <| Disj (Conj a b) (Neg (EqAtom d j))
-        , test "Eq4" <| \() -> testParse "(-d = j & (a|b))" <| Conj (Neg (EqAtom d j)) (Disj a b)
-        , test "NegEq2" <| \() -> testParse "((a&b) | d != j)" <| Disj (Conj a b) (Neg (EqAtom d j))
-        , test "NegEq3" <| \() -> testParse "(d != f(j) -> g(x) /= z)" <| Impl (Neg (EqAtom d (Fun "f" [ j ]))) (Neg (EqAtom (Fun "g" [ x ]) z))
+        , test "Impl2" <| \() -> testParse "(a→b)" <| Impl a b
+        , test "Equiv" <| \() -> testParse "(a↔b)" <| Equiv a b
+        , test "Equiv2" <| \() -> testParse "(a<->b)" <| Equiv a b
+        , test "Eq4" <| \() -> testParse "((a&b) | - d = j)" <| Disj (Conj a b) (Neg (EqAtom d j))
+        , test "Eq5" <| \() -> testParse "(-d = j & (a|b))" <| Conj (Neg (EqAtom d j)) (Disj a b)
+        , test "NegEq4" <| \() -> testParse "((a&b) | d != j)" <| Disj (Conj a b) (Neg (EqAtom d j))
+        , test "NegEq5" <| \() -> testParse "(d != f(j) -> g(x) /= z)" <| Impl (Neg (EqAtom d (Fun "f" [ j ]))) (Neg (EqAtom (Fun "g" [ x ]) z))
         , test "Quantified with atomic" <| \() -> testParse "∃x f(x)=x" <| Exists "x" (EqAtom (Fun "f" [ x ]) x)
         , test "Quantified with atomic2" <| \() -> testParse "\\forall x z=f(x)" <| ForAll "x" (EqAtom z (Fun "f" [ x ]))
         , test "Quantified with atomic3" <| \() -> testParse "∀x f(x)≠x" <| ForAll "x" (Neg (EqAtom (Fun "f" [ x ]) x))
@@ -300,7 +317,7 @@ testSubstitution subst original new =
 
 
 
---testovanie spravneho vyberu premennych -> aplikovateľnosť substitúcie
+--testovanie spravneho vyberu premennych -> aplikovateľnosť substitúcie
 
 
 testSubstitutionFail : Substitution -> Formula -> Test
