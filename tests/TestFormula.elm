@@ -210,10 +210,10 @@ signedSubformulasTests =
         ]
 
 
-testParseFunction function string formula =
+testParseFunction function string item =
     case function string of
         Ok value ->
-            Expect.equal value formula
+            Expect.equal value item
 
         Err error ->
             Expect.fail <| "Parsing failed: " ++ Parser.deadEndsToString error
@@ -225,6 +225,14 @@ testParse =
 
 testParseSigned =
     testParseFunction Formula.Parser.parseSigned
+
+
+testParseSubst =
+    testParseFunction Formula.Parser.parseSubstitution
+
+
+testParseSubstFail str =
+    Expect.err <| Formula.Parser.parseSubstitution str
 
 
 parseTests =
@@ -256,6 +264,20 @@ parseTests =
         , test "Quantified with atomic2" <| \() -> testParse "\\forall x z=f(x)" <| ForAll "x" (EqAtom z (Fun "f" [ x ]))
         , test "Quantified with atomic3" <| \() -> testParse "∀x f(x)≠x" <| ForAll "x" (Neg (EqAtom (Fun "f" [ x ]) x))
         , test "Quantified with atomic4" <| \() -> testParse "∃x p(x, y, z)" <| Exists "x" (PredAtom "p" [ x, Var "y", z ])
+        , test "one subst pair" <| \() -> testParseSubst "a -> b" <| Dict.fromList [ ( "a", Var "b" ) ]
+        , test "one subst pair2" <| \() -> testParseSubst "a → b" <| Dict.fromList [ ( "a", Var "b" ) ]
+        , test "one subst pair3" <| \() -> testParseSubst "a ↦ b" <| Dict.fromList [ ( "a", Var "b" ) ]
+        , test "different arrows" <| \() -> testParseSubst "b -> b, a → a, c ↦ c" <| Dict.fromList [ ( "b", Var "b" ), ( "a", Var "a" ), ( "c", Var "c" ) ]
+        , test "four subst pairs" <| \() -> testParseSubst "b -> b, a -> a, c -> c, x -> x" <| Dict.fromList [ ( "b", Var "b" ), ( "a", Var "a" ), ( "c", Var "c" ), ( "x", Var "x" ) ]
+        , test "function in subst" <| \() -> testParseSubst "b -> f(b), a -> f(a)" <| Dict.fromList [ ( "b", Fun "f" [ Var "b" ] ), ( "a", Fun "f" [ Var "a" ] ) ]
+        , test "functions in subst" <| \() -> testParseSubst "axs -> f(b,a,c), a -> f(a,b)" <| Dict.fromList [ ( "axs", Fun "f" [ Var "b", Var "a", Var "c" ] ), ( "a", Fun "f" [ Var "a", Var "b" ] ) ]
+        , test "many spaces" <| \() -> testParseSubst "  b    -> f(b)  ,   a ->   f(a)  " <| Dict.fromList [ ( "b", Fun "f" [ Var "b" ] ), ( "a", Fun "f" [ Var "a" ] ) ]
+        , test "comma at the end" <| \() -> testParseSubstFail "a -> f(a),"
+        , test "comma at the start" <| \() -> testParseSubstFail ",b -> f(b)"
+        , test "commas" <| \() -> testParseSubstFail "b -> f(b),, a -> f(a)"
+        , test "no comma" <| \() -> testParseSubstFail "a -> b a -> b"
+        , test "fun instead of var" <| \() -> testParseSubstFail "f(b) -> f(b), a -> f(a)"
+        , test "fun instead of var2" <| \() -> testParseSubstFail "b -> f(b), a -> f(a), g(x) -> g(x)"
         , test "Complex" <| \() -> testParse "(-(a->b)|(b&a))" <| Disj (Neg (Impl a b)) (Conj b a)
         , test "Complex2" <|
             \() ->
@@ -295,7 +317,7 @@ testSubstitution subst original new =
 
 
 
---testovanie spravneho vyberu premennych -> aplikovateľnosť substitúcie
+--testovanie spravneho vyberu premennych -> aplikovateľnosť substitúcie
 
 
 testSubstitutionFail : Substitution -> Formula -> Test

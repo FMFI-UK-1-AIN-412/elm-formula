@@ -1,11 +1,11 @@
-module Formula.Parser exposing (parse, parseSigned, parseTerm)
+module Formula.Parser exposing (parse, parseSigned, parseTerm, parseSubstitution)
 
 {-| This library parses formulas.
 
 
 # Parsers
 
-@docs parse, parseSigned, parseTerm
+@docs parse, parseSigned, parseTerm, parseSubstitution
 
 -}
 
@@ -54,6 +54,13 @@ parseTerm =
 parse : String -> Result (List Parser.DeadEnd) Formula
 parse =
     Parser.run (succeed identity |. spaces |= formula |. spaces |. end)
+
+
+{-| Parse string to Substitution
+-}
+parseSubstitution : String -> Result (List Parser.DeadEnd) Term.Substitution
+parseSubstitution str =
+    Parser.run (succeed identity |. spaces |= substitution |. spaces |. end) ("{" ++ str ++ "}")
 
 
 {-| Format parsing error
@@ -184,6 +191,29 @@ term =
                     , succeed (Var name)
                     ]
             )
+
+
+substitution : Parser Term.Substitution
+substitution =
+    map Dict.fromList <|
+        Parser.sequence
+            { start = "{"
+            , separator = ","
+            , end = "}"
+            , spaces = spaces
+            , item = substPair
+            , trailing = Forbidden
+            }
+
+
+substPair : Parser ( String, Term )
+substPair =
+    succeed Tuple.pair
+        |= identifier
+        |. spaces
+        |. oneOfSymbols [ "->", "→", "↦" ]
+        |. spaces
+        |= term
 
 
 identifier : Parser String
