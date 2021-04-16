@@ -33,6 +33,7 @@ import Parser
         )
 import Set exposing (Set)
 import Term exposing (Term(..))
+import Unicode
 
 
 {-| Parse string to Signed Formula
@@ -219,7 +220,7 @@ substPair =
 identifier : Parser String
 identifier =
     variable
-        { start = isLetter
+        { start = isIdentChar
         , inner = isIdentChar
         , reserved = Set.empty
         }
@@ -230,20 +231,15 @@ oneOfSymbols syms =
     oneOf (List.map symbol syms)
 
 
-isLetter : Char -> Bool
-isLetter char =
-    Char.isLower char
-        || Char.isUpper char
-
-
 isIdentChar : Char -> Bool
 isIdentChar char =
-    isLetter char
-        || Char.isDigit char
+    Unicode.isAlphaNum char
         || char
         == '_'
+        || char
+        == '$'
 
 
 spaces : Parser ()
 spaces =
-    chompWhile (\c -> c == ' ' || c == '\t' || c == '\u{000D}' || c == '\u{000D}')
+    chompWhile (\c -> c == ' ' || c == '\t' || c == '\n' || c == '\u{000D}')
