@@ -95,9 +95,9 @@ strTermTests : Test
 strTermTests =
     describe "strTerm tests"
         [ strTTest "x" <| x
-        , strTTest "fff(x,yyy)" <| f [ x, y ]
+        , strTTest "fff(x, yyy)" <| f [ x, y ]
         , strTTest "fff()" <| f []
-        , strTTest "fff(g(x,fff()),fff())" <| f [ g [ x, f [] ], f [] ]
+        , strTTest "fff(g(x, fff()), fff())" <| f [ g [ x, f [] ], f [] ]
         ]
 
 
@@ -110,14 +110,14 @@ strFormulaTests : Test
 strFormulaTests =
     describe "strFormula tests"
         [ strFTest "a" <| a
-        , strFTest "¬a" <| Neg a
-        , strFTest "d≐j" <| EqAtom d j
-        , strFTest "(a∧b)" <| Conj a b
-        , strFTest "(a∨b)" <| Disj a b
-        , strFTest "(a→b)" <| Impl a b
-        , strFTest "(a↔b)" <| Equiv a b
-        , strFTest "(¬(a→b)∨¬(b→a))" <| Disj (Neg (Impl a b)) (Neg (Impl b a))
-        , strFTest "((a∧¬b)→(a∨(b→a)))" <| Impl (Conj a (Neg b)) (Disj a (Impl b a))
+        , strFTest "¬ a" <| Neg a
+        , strFTest "d ≐ j" <| EqAtom d j
+        , strFTest "( a ∧ b )" <| Conj a b
+        , strFTest "( a ∨ b )" <| Disj a b
+        , strFTest "( a → b )" <| Impl a b
+        , strFTest "( a ↔ b )" <| Equiv a b
+        , strFTest "( ¬ ( a → b ) ∨ ¬ ( b → a ) )" <| Disj (Neg (Impl a b)) (Neg (Impl b a))
+        , strFTest "( ( a ∧ ¬ b ) → ( a ∨ ( b → a ) ) )" <| Impl (Conj a (Neg b)) (Disj a (Impl b a))
         , strFTest "∀x ppp(x)" <| ForAll "x" (p [ x ])
         , strFTest "∃x ppp(x)" <| Exists "x" (p [ x ])
         , strFTest "∀yyy ppp(x)" <| ForAll "yyy" (p [ x ])

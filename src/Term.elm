@@ -197,7 +197,7 @@ toString t =
 -}
 argsToString : List Term -> String
 argsToString ts =
-    "(" ++ String.join "," (List.map toString ts) ++ ")"
+    "(" ++ String.join ", " (List.map toString ts) ++ ")"
 
 
 {-| String representation of a Substitution
@@ -207,7 +207,7 @@ strSubstitution s =
     "("
         ++ (s
                 |> Dict.toList
-                |> List.map (\( v, t ) -> v ++ "->" ++ toString t)
-                |> String.join ","
+                |> List.map (\( v, t ) -> v ++ " -> " ++ toString t)
+                |> String.join ", "
            )
         ++ ")"

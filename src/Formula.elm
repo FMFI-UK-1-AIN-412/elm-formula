@@ -238,23 +238,11 @@ variables f =
 
 
 binToString lf c rf =
-    "(" ++ toString lf ++ c ++ toString rf ++ ")"
+    "( " ++ toString lf ++ " " ++ c ++ " " ++ toString rf ++ " )"
 
 
 qToString q bv f =
-    q ++ bv ++ atomSpace f ++ toString f
-
-
-atomSpace f =
-    case f of
-        PredAtom _ _ ->
-            " "
-
-        EqAtom _ _ ->
-            " "
-
-        _ ->
-            ""
+    q ++ bv ++ " " ++ toString f
 
 
 {-| String representation of a Formula
@@ -275,10 +263,10 @@ toString f =
             p ++ Term.argsToString ts
 
         EqAtom lt rt ->
-            Term.toString lt ++ "≐" ++ Term.toString rt
+            Term.toString lt ++ " ≐ " ++ Term.toString rt
 
         Neg sf ->
-            "¬" ++ toString sf
+            "¬ " ++ toString sf
 
         Conj lf rf ->
             binToString lf "∧" rf
