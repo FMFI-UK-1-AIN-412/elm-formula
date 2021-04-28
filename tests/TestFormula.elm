@@ -174,6 +174,7 @@ binIsSubformulaTests conn fa fb =
     ]
 
 
+isSubformulaOfTests : Test
 isSubformulaOfTests =
     describe "isSubformulaOf tests"
         [ testIsNotSubformula a a
@@ -195,6 +196,7 @@ isSubformulaOfTests =
         ]
 
 
+signedSubformulasTests : Test
 signedSubformulasTests =
     describe "signedSubformulas tests"
         [ test "T Neg" <| \() -> Expect.equal (Formula.Signed.subformulas <| T <| Neg a) [ F a ]
@@ -235,6 +237,7 @@ testParseSubstFail str =
     Expect.err <| Formula.Parser.parseSubstitution str
 
 
+parseTests : Test
 parseTests =
     describe "parse tests"
         [ test "Eq" <| \() -> testParse "(d≐j)" <| EqAtom d j
@@ -295,9 +298,26 @@ parseTests =
             \() ->
                 testParse "∃x ∃y ( g(y,x) ≠ f(x) | ∃z (-p(x, y) & f(y) = z))" <|
                     Exists "x" (Exists "y" (Disj (Neg (EqAtom (Fun "g" [ Var "y", x ]) (Fun "f" [ x ]))) (Exists "z" (Conj (Neg (PredAtom "p" [ x, Var "y" ])) (EqAtom (Fun "f" [ Var "y" ]) z)))))
+        , test "Unicode and numbers" <|
+            \() ->
+                testParse "deliteľ(7, 21)" <|
+                    PredAtom "deliteľ" [ Var "7", Var "21" ]
+        , test "Unicode underscores and dollars" <|
+            \() ->
+                testParse "má_rád(Držgroš_McDuck, $$$)" <|
+                    PredAtom "má_rád" [ Var "Držgroš_McDuck", Var "$$$" ]
+        , test "Equality and numbers 1" <|
+            \() ->
+                testParse "gcd(14, 21) = 7" <|
+                    EqAtom (Fun "gcd" [ Var "14", Var "21" ]) (Var "7")
+        , test "Equality and numbers 2" <|
+            \() ->
+                testParse "42 = lcm(14, 21)" <|
+                    EqAtom (Var "42") (Fun "lcm" [ Var "14", Var "21" ])
         ]
 
 
+parseSignedTests : Test
 parseSignedTests =
     describe "parseSigned tests"
         [ test "T a" <| \() -> testParseSigned "T a" <| T a
@@ -349,6 +369,7 @@ testRemoveQuantifierAndSubstituteFail subst original =
 --testovanie substitucie viacerych premennych naraz
 
 
+substitutionTests : Test
 substitutionTests =
     describe "Substitution "
         [ --normal
@@ -439,6 +460,7 @@ substitutionTests =
         ]
 
 
+removeQuantifierTests : Test
 removeQuantifierTests =
     describe "Remove quantifier and substitute"
         [ testRemoveQuantifierAndSubstituteFail
