@@ -3,7 +3,7 @@
     "name": "FMFI-UK-1-AIN-412/elm-formula",
     "summary": "First-order logic formulas and parser",
     "license": "MIT",
-    "version": "5.0.0",
+    "version": "5.0.1",
     "exposed-modules": [
         "Formula",
         "Formula.Parser",
